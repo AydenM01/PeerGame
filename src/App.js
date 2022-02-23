@@ -38,7 +38,7 @@ function App() {
     let newId = loginIdInput;
     console.log("Creating Peer with id: " + newId);
     const peer = new Peer(newId, {
-      host: "localhost",
+      host: "10.2.18.6",
       port: 9000,
       path: "peerjs/myapp",
     });
