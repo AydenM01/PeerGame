@@ -298,6 +298,7 @@ function App() {
       <video ref={videoRef} autoPlay></video>
 
       <PlayerPeer />
+      <div />
     </Box>
   );
 }
