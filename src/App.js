@@ -14,6 +14,7 @@ function App() {
   let videoRef = createRef();
   const [video, isCameraInitialised, running, setPlaying, error] =
     useDisplay(videoRef);
+  console.log(video)
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
@@ -25,6 +26,8 @@ function App() {
   const [queryInput, setQueryInput] = useState("");
   const [returnData, setReturnData] = useState(null);
   const [image, setImage] = useState(null);
+  const [serverID, setServerIdInput] = useState("");
+
 
   var displayMediaOptions = {
     video: {
@@ -38,7 +41,7 @@ function App() {
     let newId = loginIdInput;
     console.log("Creating Peer with id: " + newId);
     const peer = new Peer(newId, {
-      host: "10.2.18.6",
+      host: "localhost",
       port: 9000,
       path: "peerjs/myapp",
     });
@@ -63,6 +66,13 @@ function App() {
     storedFile = fileObj;
     //setStoredFileObj(fileObj);
   };
+
+  const requestScreenShare = (id) => {
+    //get connection from id
+    let conn = currConnections[id]
+    console.log(conn)
+    conn.send("rss," + currUser)
+  }
 
   const handleConnection = (id) => {
     const connection = currPeer.connect(id);
@@ -134,11 +144,24 @@ function App() {
     });
   }
 
+  //Listen for incoming Video Stream
+  if (currPeer != null) {
+    currPeer.on("call", function(call) {
+      let stream = call.answer()
+      console.log("Stream Received")
+      call.on('stream', function(stream) {
+        // `stream` is the MediaStream of the remote peer.
+        // Here you'd add it to an HTML video/canvas element.
+      });
+    });
+  }
+
   // Listen for Incoming Data on all Connections
   if (currPeer != null) {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
         console.log("data received");
+        console.log(data)
 
         // Handle File Found
         if (
@@ -151,6 +174,16 @@ function App() {
           img.src = "data:image/png;base64," + encode(bytes);
           setImage(img);
           conn.close();
+        }
+
+        //Handle Screen Share Request
+        if (typeof data == typeof "") {
+          let command = data.split(",")
+          if (command[0] == "rss"){
+            // Call a peer, providing our mediaStream
+            console.log(video.srcObject)
+            var call = currPeer.call(command[1], video.srcObject);
+          }
         }
 
         //Handle Incoming Query Request
@@ -294,6 +327,25 @@ function App() {
       <Button onClick={startCapture}>Start Capture</Button>
 
       <Button onClick={stopCapture}>Stop Capture</Button>
+
+      <Grid item xs={4} justifyContent="center">
+          <Typography>Request Screen Share</Typography>
+          <TextField
+            label="PeerId"
+            value={serverID}
+            onChange={(e) => {
+              setServerIdInput(e.target.value);
+            }}
+          ></TextField>
+          <Button
+            variant="contained"
+            onClick={() => {
+              requestScreenShare(serverID);
+            }}
+          >
+            Request Game
+          </Button>
+        </Grid>
 
       <video ref={videoRef} autoPlay></video>
 
