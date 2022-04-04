@@ -15,7 +15,6 @@ import { generateQueryId, encode } from "./utils/utils";
 import { useGamepads } from "react-gamepads";
 import PlayerPeer from "./components/PlayerPeer";
 import { useDisplay } from "./utils/useDisplay";
-import { usePeerDisplay } from "./utils/usePeerDisplay";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
