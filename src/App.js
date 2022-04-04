@@ -16,6 +16,7 @@ import { useGamepads } from "react-gamepads";
 import PlayerPeer from "./components/PlayerPeer";
 import { useDisplay } from "./utils/useDisplay";
 import { usePeerDisplay } from "./utils/usePeerDisplay";
+import axios from "axios";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
@@ -73,6 +74,21 @@ function App() {
     console.log(fileObj);
     storedFile = fileObj;
     //setStoredFileObj(fileObj);
+  };
+
+  const sendW = () => {
+    let config = {
+      headers: {
+        "Access-Control-Allow_Origin": "*",
+        "Content-Type": "application/json",
+      },
+    };
+
+    let data = {
+      command: "w,keydown",
+    };
+
+    axios.post("http://127.0.0.1:5000/input", data, config);
   };
 
   const requestScreenShare = (id) => {
@@ -334,6 +350,14 @@ function App() {
           }}
         >
           Request Game
+        </Button>
+
+        <Button
+          onClick={() => {
+            sendW();
+          }}
+        >
+          Send W
         </Button>
       </Grid>
 
