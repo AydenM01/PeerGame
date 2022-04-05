@@ -12,10 +12,8 @@ import React, {
 } from "react";
 import { Box, TextField, Button, Typography, Grid } from "@mui/material";
 import { generateQueryId, encode } from "./utils/utils";
-import { useGamepads } from "react-gamepads";
 import PlayerPeer from "./components/PlayerPeer";
 import { useDisplay } from "./utils/useDisplay";
-import { usePeerDisplay } from "./utils/usePeerDisplay";
 import axios from "axios";
 
 function App() {
@@ -115,8 +113,7 @@ function App() {
     }
   };
 
-  console.log(keyInput + " sent");
-  const sendW = () => {
+  const sendInput = (type, key) => {
     let config = {
       headers: {
         "Access-Control-Allow_Origin": "*",
@@ -125,7 +122,8 @@ function App() {
     };
 
     let data = {
-      command: "w,keydown",
+      type: type,
+      key: key,
     };
 
     axios.post("http://127.0.0.1:5000/input", data, config);
@@ -210,9 +208,6 @@ function App() {
   if (currPeer != null) {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
-        console.log("data received");
-        console.log(data);
-
         // Handle File Found
         if (
           typeof data == typeof {} &&
@@ -233,6 +228,22 @@ function App() {
             // Call a peer, providing our mediaStream
             //console.log(video.srcObject);
             currPeer.call(command[1], video.srcObject);
+          }
+        }
+
+        //Handle Input Control Request
+        if (typeof data == typeof "") {
+          let command = data.split(",");
+          if (command[0] === "ku" || command[0] === "kd") {
+            console.log("Input command receieved");
+            if (
+              command[1] === "w" ||
+              command[1] === "a" ||
+              command[1] === "s" ||
+              command[1] === "d"
+            ) {
+              sendInput(command[0], command[1]);
+            }
           }
         }
 
@@ -390,14 +401,6 @@ function App() {
           }}
         >
           Request Game
-        </Button>
-
-        <Button
-          onClick={() => {
-            sendW();
-          }}
-        >
-          Send W
         </Button>
       </Grid>
 

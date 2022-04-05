@@ -17,7 +17,6 @@ const initialiseCamera = async () =>
   await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true });
 
 export const useDisplay = (videoRef) => {
-  console.log(videoRef)
   const [isCameraInitialised, setIsCameraInitialised] = useState(false);
   const [video, setVideo] = useState(null);
   const [error, setError] = useState("");
