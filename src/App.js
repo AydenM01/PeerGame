@@ -15,6 +15,8 @@ import { generateQueryId, encode } from "./utils/utils";
 import { useGamepads } from "react-gamepads";
 import PlayerPeer from "./components/PlayerPeer";
 import { useDisplay } from "./utils/useDisplay";
+import { usePeerDisplay } from "./utils/usePeerDisplay";
+import axios from "axios";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
@@ -36,7 +38,7 @@ function App() {
   const [returnData, setReturnData] = useState(null);
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
-  const [keyInput, setKeyInput] = useState("")
+  const [keyInput, setKeyInput] = useState("");
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -58,19 +60,19 @@ function App() {
   useEffect(() => {}, [image]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   });
 
   useEffect(() => {
-    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
-      window.removeEventListener('keyup', handleKeyUp)
-    }
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   });
 
   useEffect(() => {
@@ -92,24 +94,42 @@ function App() {
   };
 
   const handleKeyUp = (event) => {
-    if (event.repeat) {return}
-    setKeyInput("ku," + event.key)
+    if (event.repeat) {
+      return;
+    }
+    setKeyInput("ku," + event.key);
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
-      conn.send(keyInput)
+      conn.send(keyInput);
     }
   };
 
   const handleKeyDown = (event) => {
-    if (event.repeat) {return}
+    if (event.repeat) {
+      return;
+    }
     setKeyInput("kd," + event.key);
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
       conn.send(keyInput);
-    };
+    }
   };
 
   console.log(keyInput + " sent");
+  const sendW = () => {
+    let config = {
+      headers: {
+        "Access-Control-Allow_Origin": "*",
+        "Content-Type": "application/json",
+      },
+    };
+
+    let data = {
+      command: "w,keydown",
+    };
+
+    axios.post("http://127.0.0.1:5000/input", data, config);
+  };
 
   const requestScreenShare = (id) => {
     //get connection from id
@@ -191,7 +211,7 @@ function App() {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
         console.log("data received");
-        console.log(data)
+        console.log(data);
 
         // Handle File Found
         if (
@@ -371,6 +391,14 @@ function App() {
         >
           Request Game
         </Button>
+
+        <Button
+          onClick={() => {
+            sendW();
+          }}
+        >
+          Send W
+        </Button>
       </Grid>
 
       <video ref={videoRef} autoPlay></video>
@@ -380,8 +408,6 @@ function App() {
       <PlayerPeer />
       <div />
     </Box>
-
-    
   );
 }
 
