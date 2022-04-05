@@ -1,42 +1,27 @@
-import logo from "./logo.svg";
 import "./App.css";
 import Peer from "peerjs-client";
-import Header from "./components/Header";
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  createRef,
-  VideoHTMLAttributes,
-  useCallback,
-} from "react";
+import React, { useEffect, useRef, useState, createRef } from "react";
 import { Box, TextField, Button, Typography, Grid } from "@mui/material";
 import { generateQueryId, encode } from "./utils/utils";
-import { useGamepads } from "react-gamepads";
-import PlayerPeer from "./components/PlayerPeer";
 import { useDisplay } from "./utils/useDisplay";
+import axios from "axios";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
   let videoRef = createRef();
   let videoRef2 = useRef(null);
-  const [video, isCameraInitialised, running, setPlaying, error] =
-    useDisplay(videoRef);
+  const [video] = useDisplay(videoRef)[0];
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
-  const [currStream, setCurrStream] = useState(null);
   const [currCall, setCurrCall] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
   const [currPeer, setCurrPeer] = useState(null);
   const [currConnections, setCurrConnections] = useState({});
-  const [storedFileObj, setStoredFileObj] = useState(null);
   const [queryInput, setQueryInput] = useState("");
-  const [returnData, setReturnData] = useState(null);
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
-  const [keyInput, setKeyInput] = useState("")
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -53,24 +38,24 @@ function App() {
     });
 
     setCurrPeer(peer);
-  }, [currUser]);
+  }, [currUser, loginIdInput]);
 
   useEffect(() => {}, [image]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   });
 
   useEffect(() => {
-    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
-      window.removeEventListener('keyup', handleKeyUp)
-    }
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   });
 
   useEffect(() => {
@@ -92,27 +77,42 @@ function App() {
   };
 
   const handleKeyUp = (event) => {
-    if (event.repeat) {return}
-    let newKeyInput = "ku," + event.key
-    setKeyInput(newKeyInput)
+    if (event.repeat) {
+      return;
+    }
+    let newKeyInput = "ku," + event.key;
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
-      conn.send(newKeyInput)
+      conn.send(newKeyInput);
     }
   };
 
   const handleKeyDown = (event) => {
-    if (event.repeat) {return}
-    let newKeyInput = "kd," + event.key
-    setKeyInput(newKeyInput);
-    console.log('kd' + " sent");
+    if (event.repeat) {
+      return;
+    }
+    let newKeyInput = "kd," + event.key;
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
       conn.send(newKeyInput);
-    };
+    }
   };
 
-  console.log(keyInput + " sent");
+  const sendInput = (type, key) => {
+    let config = {
+      headers: {
+        "Access-Control-Allow_Origin": "*",
+        "Content-Type": "application/json",
+      },
+    };
+
+    let data = {
+      type: type,
+      key: key,
+    };
+
+    axios.post("http://127.0.0.1:5000/input", data, config);
+  };
 
   const requestScreenShare = (id) => {
     //get connection from id
@@ -136,15 +136,6 @@ function App() {
       currConnections[key].send(data);
     });
   };
-
-  function dumpOptionsInfo() {
-    const videoTrack = videoRef.srcObject.getVideoTracks()[0];
-
-    console.info("Track settings:");
-    console.info(JSON.stringify(videoTrack.getSettings(), null, 2));
-    console.info("Track constraints:");
-    console.info(JSON.stringify(videoTrack.getConstraints(), null, 2));
-  }
 
   // This is called when user inputs query and clicks button
   // Starts communication between nodes for finding stuff
@@ -193,9 +184,6 @@ function App() {
   if (currPeer != null) {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
-        console.log("data received");
-        console.log(data)
-
         // Handle File Found
         if (
           typeof data == typeof {} &&
@@ -212,10 +200,25 @@ function App() {
         //Handle Screen Share Request
         if (typeof data == typeof "") {
           let command = data.split(",");
-          if (command[0] == "rss") {
+          if (command[0] === "rss") {
             // Call a peer, providing our mediaStream
-            //console.log(video.srcObject);
             currPeer.call(command[1], video.srcObject);
+          }
+        }
+
+        //Handle Input Control Request
+        if (typeof data == typeof "") {
+          let command = data.split(",");
+          if (command[0] === "ku" || command[0] === "kd") {
+            console.log("Input command receieved");
+            if (
+              command[1] === "w" ||
+              command[1] === "a" ||
+              command[1] === "s" ||
+              command[1] === "d"
+            ) {
+              sendInput(command[0], command[1]);
+            }
           }
         }
 
@@ -223,7 +226,7 @@ function App() {
         if (
           typeof data == typeof {} &&
           data.hasOwnProperty("type") &&
-          data.type == "query" &&
+          data.type === "query" &&
           !previousQueries.has(data.qid)
         ) {
           //console.log("New File Query Receieved");
@@ -352,7 +355,7 @@ function App() {
       </Grid>
 
       {image !== null ? (
-        <img src={image.src} style={{ maxWidth: 800 }} />
+        <img src={image.src} alt={'peer'} style={{ maxWidth: 800 }} />
       ) : (
         <div />
       )}
@@ -381,8 +384,6 @@ function App() {
       <video ref={videoRef2} autoPlay></video>
       <div />
     </Box>
-
-    
   );
 }
 
