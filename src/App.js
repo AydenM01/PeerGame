@@ -72,10 +72,12 @@ function App() {
       window.removeEventListener('keyup', handleKeyUp)
     }
   });
-  //   if (currCall != null) {
-  //     currCall.answer();
-  //   }
-  // }, [currCall]);
+
+  useEffect(() => {
+    if (currCall != null) {
+      currCall.answer();
+    }
+  }, [currCall]);
 
   //////////////////////// EVENT HANDLERS //////////////////////////////
   const onFileChange = (e) => {
@@ -84,27 +86,35 @@ function App() {
     const fileObj = {};
     fileObj[file.name] = file;
     fileObj["blob"] = blob;
-    console.log(fileObj);
+    //console.log(fileObj);
     storedFile = fileObj;
     //setStoredFileObj(fileObj);
   };
 
   const handleKeyUp = (event) => {
+    if (event.repeat) {return}
     setKeyInput("ku," + event.key)
+    if (currCall != null && currPeer != null) {
+      let conn = currConnections[currCall.peer];
+      conn.send(keyInput)
+    }
   };
 
   const handleKeyDown = (event) => {
-    setKeyInput("kd," + event.key)
+    if (event.repeat) {return}
+    setKeyInput("kd," + event.key);
+    if (currCall != null && currPeer != null) {
+      let conn = currConnections[currCall.peer];
+      conn.send(keyInput);
+    };
   };
 
-
-  console.log(keyInput)
-
+  console.log(keyInput + " sent");
 
   const requestScreenShare = (id) => {
     //get connection from id
     let conn = currConnections[id];
-    console.log(conn);
+    //console.log(conn);
     conn.send("rss," + currUser);
   };
 
@@ -162,7 +172,7 @@ function App() {
   //Listen for incoming Video Stream
   if (currPeer != null) {
     currPeer.on("call", function (call) {
-      console.log("Call Event Received");
+      //console.log("Call Event Received");
       setCurrCall(call);
     });
   }
@@ -171,7 +181,7 @@ function App() {
     currCall.on("stream", function (stream) {
       // `stream` is the MediaStream of the remote peer.
       // Here you'd add it to an HTML video/canvas element.
-      console.log("Stream Event Received");
+      //console.log("Stream Event Received");
       videoRef2.current.srcObject = stream;
     });
   }
@@ -180,8 +190,8 @@ function App() {
   if (currPeer != null) {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
-        //console.log("data received");
-        //console.log(data)
+        console.log("data received");
+        console.log(data)
 
         // Handle File Found
         if (
@@ -201,7 +211,7 @@ function App() {
           let command = data.split(",");
           if (command[0] == "rss") {
             // Call a peer, providing our mediaStream
-            console.log(video.srcObject);
+            //console.log(video.srcObject);
             currPeer.call(command[1], video.srcObject);
           }
         }
@@ -213,7 +223,7 @@ function App() {
           data.type == "query" &&
           !previousQueries.has(data.qid)
         ) {
-          console.log("New File Query Receieved");
+          //console.log("New File Query Receieved");
           //console.log(data);
           previousQueries.add(data.qid);
 
@@ -224,7 +234,7 @@ function App() {
             Object.keys(storedFile).forEach((key) => {
               // Handle if File is Found
               if (storedFile[key].name.includes(data.fileKeyword)) {
-                console.log("File Found!");
+                //console.log("File Found!");
 
                 let fileData = {
                   qid: data.qid,
