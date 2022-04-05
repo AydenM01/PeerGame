@@ -27,6 +27,7 @@ function App() {
   const [returnData, setReturnData] = useState(null);
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
+  const [keyInput, setKeyInput] = useState("")
 
 
   var displayMediaOptions = {
@@ -55,6 +56,22 @@ function App() {
 
   useEffect(() => {}, [image]);
 
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  });
+
+  useEffect(() => {
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  });
+
   //////////////////////// EVENT HANDLERS //////////////////////////////
   const onFileChange = (e) => {
     let file = e.target.files[0];
@@ -67,12 +84,24 @@ function App() {
     //setStoredFileObj(fileObj);
   };
 
+  const handleKeyUp = (event) => {
+    setKeyInput("ku," + event.key)
+  };
+
+  const handleKeyDown = (event) => {
+    setKeyInput("kd," + event.key)
+  };
+
+
+  console.log(keyInput)
+
+
   const requestScreenShare = (id) => {
     //get connection from id
     let conn = currConnections[id]
     console.log(conn)
     conn.send("rss," + currUser)
-  }
+  };
 
   const handleConnection = (id) => {
     const connection = currPeer.connect(id);
@@ -148,7 +177,7 @@ function App() {
   if (currPeer != null) {
     currPeer.on("call", function(call) {
       let stream = call.answer()
-      console.log("Stream Received")
+      //console.log("Stream Received")
       call.on('stream', function(stream) {
         // `stream` is the MediaStream of the remote peer.
         // Here you'd add it to an HTML video/canvas element.
@@ -160,8 +189,8 @@ function App() {
   if (currPeer != null) {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
-        console.log("data received");
-        console.log(data)
+        //console.log("data received");
+        //console.log(data)
 
         // Handle File Found
         if (
@@ -181,7 +210,7 @@ function App() {
           let command = data.split(",")
           if (command[0] == "rss"){
             // Call a peer, providing our mediaStream
-            console.log(video.srcObject)
+            //console.log(video.srcObject)
             var call = currPeer.call(command[1], video.srcObject);
           }
         }
@@ -194,11 +223,11 @@ function App() {
           !previousQueries.has(data.qid)
         ) {
           console.log("New File Query Receieved");
-          console.log(data);
+          //console.log(data);
           previousQueries.add(data.qid);
 
           // Check if file exists on client
-          console.log("seeing if queried file exists on client");
+          //console.log("seeing if queried file exists on client");
 
           if (storedFile != null) {
             Object.keys(storedFile).forEach((key) => {
@@ -328,6 +357,8 @@ function App() {
 
       <Button onClick={stopCapture}>Stop Capture</Button>
 
+      {/* <input type="text" onKeyDown={(e) => handleKeyPress(e)} /> */}
+
       <Grid item xs={4} justifyContent="center">
           <Typography>Request Screen Share</Typography>
           <TextField
@@ -352,6 +383,8 @@ function App() {
       <PlayerPeer />
       <div />
     </Box>
+
+    
   );
 }
 
