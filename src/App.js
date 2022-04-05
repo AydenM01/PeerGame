@@ -43,7 +43,7 @@ function App() {
     let newId = loginIdInput;
     console.log("Creating Peer with id: " + newId);
     const peer = new Peer(newId, {
-      host: "localhost",
+      host: "10.2.18.47",
       port: 9000,
       path: "peerjs/myapp",
     });
@@ -93,19 +93,22 @@ function App() {
 
   const handleKeyUp = (event) => {
     if (event.repeat) {return}
-    setKeyInput("ku," + event.key)
+    let newKeyInput = "ku," + event.key
+    setKeyInput(newKeyInput)
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
-      conn.send(keyInput)
+      conn.send(newKeyInput)
     }
   };
 
   const handleKeyDown = (event) => {
     if (event.repeat) {return}
-    setKeyInput("kd," + event.key);
+    let newKeyInput = "kd," + event.key
+    setKeyInput(newKeyInput);
+    console.log('kd' + " sent");
     if (currCall != null && currPeer != null) {
       let conn = currConnections[currCall.peer];
-      conn.send(keyInput);
+      conn.send(newKeyInput);
     };
   };
 
@@ -376,8 +379,6 @@ function App() {
       <video ref={videoRef} autoPlay></video>
 
       <video ref={videoRef2} autoPlay></video>
-
-      <PlayerPeer />
       <div />
     </Box>
 
