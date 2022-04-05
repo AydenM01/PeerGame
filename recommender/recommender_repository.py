@@ -1,13 +1,10 @@
-import csv
 import firebase_admin
+import numpy as np
 from firebase_admin import credentials
 from firebase_admin import firestore
 
 
-class RecommenderRepository:  # when we create a db, this class will change a lot
-    users = []
-    movies = []
-    ratings = []
+class RecommenderRepository:
     db = None
 
     def __init__(self):
@@ -18,11 +15,7 @@ class RecommenderRepository:  # when we create a db, this class will change a lo
 
     def get_all_users(self):
         docs = self.db.collection('Users Collection').stream()
-        user_dict = {}
-        user_dict['user'] = []
-        user_dict['game'] = []
-        user_dict['rating'] = []
-        user_dict['time'] = []
+        user_dict = {'user': [], 'game': [], 'rating': [], 'time': []}
 
         for user in docs:
             temp = user.to_dict()
@@ -30,32 +23,18 @@ class RecommenderRepository:  # when we create a db, this class will change a lo
                 for key, value in temp['Games Played'].items():
                     user_dict['user'].append(temp['UserID'])
                     user_dict['game'].append(value['GameID'])
-                    user_dict['rating'].append(value['Rating'])
+                    user_dict['rating'].append(value['GameID'])
                     user_dict['time'].append(value['Time Played'])
 
-        print(user_dict)
         return user_dict
 
-    # def get_single_user(self, id):
-    #     docs = self.db.collection('Users Collection').document('User1')
-    #     user_list = []
-    #
-    #     for user in docs:
-    #         temp = user.to_dict()
-    #         for game in temp['Games Played']:
-    #             user_list['user'].append(temp['UserId'])
-    #             user_dict['game'].append(game['1'])
-    #             user_dict['rating'].append(game['2'])
-    #             user_dict['time'].append(game['3'])
-    #
-    #     print(user_dict)
-    #     return user_dict
+    def get_single_user(self, UserID, n):
+        user = self.db.collection('Users Collection').document(f'user{UserID}').get()
+        my_user = np.zeros(n)
 
-    def get_all_games(self):
-        return self.ratings
+        temp = user.to_dict()
+        if 'Games Played' in temp.keys():
+            for key, value in temp['Games Played'].items():
+                my_user[value['GameID']] = value['GameID']
 
-    def get_all_ratings(self):
-        return self.ratings
-
-    def get_all_times(self):
-        return self.ratings
+        return my_user

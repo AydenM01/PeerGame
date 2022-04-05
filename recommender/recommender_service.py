@@ -1,5 +1,4 @@
 import recommender_repository
-from scipy import spatial
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,10 +10,10 @@ class RecommenderService:
     def __init__(self):
         self.recommender_repository = recommender_repository.RecommenderRepository()
 
-    def recommend_games(self, id):
+    def recommend_games(self, UserID):
         pd_dict = self.get_data()
         mat = self.create_user_matrix(pd_dict)
-        return self.create_similarity_and_get_top_games(mat)
+        return self.create_similarity_and_get_top_games(mat, UserID)
 
     def get_data(self):
         return pd.DataFrame(data=self.recommender_repository.get_all_users())
@@ -33,10 +32,9 @@ class RecommenderService:
             mat[user, game] = rating
         return mat
 
-    def create_similarity_and_get_top_games(self, mat):
+    def create_similarity_and_get_top_games(self, mat, UserID):
         # this will be input
-        my_user = np.zeros((mat.shape[1]))
-        my_user[1] = 3
+        my_user = self.recommender_repository.get_single_user(UserID, mat.shape[1])
 
         new_mat = np.vstack([mat, my_user])
         new_extracted_mat = new_mat[:, new_mat.any(0)]

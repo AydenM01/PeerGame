@@ -1,6 +1,5 @@
 from flask import Flask
 import recommender_service
-import recommender_repository
 
 
 class RecommenderController:
@@ -8,7 +7,6 @@ class RecommenderController:
 
     def __init__(self):
         self.recommender_service = recommender_service.RecommenderService()
-        # self.recommender_repository = recommender_repository.RecommenderRepository()
 
     def run(self):
         app = Flask(__name__)
@@ -17,9 +15,9 @@ class RecommenderController:
         def hello_world():
             return "<p>Hello, World!</p>"
 
-        @app.route("/api/v1/get_users")
-        def get_users():
-            games = str(self.recommender_service.recommend_games(1))
+        @app.route("/api/v1/get_rec/<UserID>")
+        def get_users(UserID):
+            games = str(self.recommender_service.recommend_games(int(UserID)))
             return {'games': games}
 
         app.run()
