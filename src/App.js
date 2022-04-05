@@ -5,6 +5,7 @@ import { Box, TextField, Button, Typography, Grid } from "@mui/material";
 import { generateQueryId, encode } from "./utils/utils";
 import { useDisplay } from "./utils/useDisplay";
 import axios from "axios";
+import { api_url } from "./env";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
@@ -28,7 +29,7 @@ function App() {
     let newId = loginIdInput;
     console.log("Creating Peer with id: " + newId);
     const peer = new Peer(newId, {
-      host: "10.2.18.47",
+      host: api_url,
       port: 9000,
       path: "peerjs/myapp",
     });
@@ -38,7 +39,7 @@ function App() {
     });
 
     setCurrPeer(peer);
-  }, [currUser, loginIdInput]);
+  }, [currUser]);
 
   useEffect(() => {}, [image]);
 
