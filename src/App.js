@@ -2,7 +2,14 @@ import logo from "./logo.svg";
 import "./App.css";
 import Peer from "peerjs-client";
 import Header from "./components/Header";
-import React, { useEffect, useState, createRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  createRef,
+  VideoHTMLAttributes,
+  useCallback,
+} from "react";
 import { Box, TextField, Button, Typography, Grid } from "@mui/material";
 import { generateQueryId, encode } from "./utils/utils";
 import { useGamepads } from "react-gamepads";
@@ -12,12 +19,14 @@ import { useDisplay } from "./utils/useDisplay";
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
   let videoRef = createRef();
+  let videoRef2 = useRef(null);
   const [video, isCameraInitialised, running, setPlaying, error] =
     useDisplay(videoRef);
-  console.log(video)
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
+  const [currStream, setCurrStream] = useState(null);
+  const [currCall, setCurrCall] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
   const [currPeer, setCurrPeer] = useState(null);
@@ -28,14 +37,6 @@ function App() {
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
   const [keyInput, setKeyInput] = useState("")
-
-
-  var displayMediaOptions = {
-    video: {
-      cursor: "always",
-    },
-    audio: true,
-  };
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -71,6 +72,10 @@ function App() {
       window.removeEventListener('keyup', handleKeyUp)
     }
   });
+  //   if (currCall != null) {
+  //     currCall.answer();
+  //   }
+  // }, [currCall]);
 
   //////////////////////// EVENT HANDLERS //////////////////////////////
   const onFileChange = (e) => {
@@ -98,9 +103,9 @@ function App() {
 
   const requestScreenShare = (id) => {
     //get connection from id
-    let conn = currConnections[id]
-    console.log(conn)
-    conn.send("rss," + currUser)
+    let conn = currConnections[id];
+    console.log(conn);
+    conn.send("rss," + currUser);
   };
 
   const handleConnection = (id) => {
@@ -118,25 +123,6 @@ function App() {
       currConnections[key].send(data);
     });
   };
-
-  async function startCapture() {
-    try {
-      videoRef.srcObject = await navigator.mediaDevices.getDisplayMedia(
-        displayMediaOptions
-      );
-
-      dumpOptionsInfo();
-    } catch (err) {
-      console.error("Error: " + err);
-    }
-  }
-
-  function stopCapture(evt) {
-    let tracks = videoRef.srcObject.getTracks();
-
-    tracks.forEach((track) => track.stop());
-    videoRef.srcObject = null;
-  }
 
   function dumpOptionsInfo() {
     const videoTrack = videoRef.srcObject.getVideoTracks()[0];
@@ -175,13 +161,18 @@ function App() {
 
   //Listen for incoming Video Stream
   if (currPeer != null) {
-    currPeer.on("call", function(call) {
-      let stream = call.answer()
-      //console.log("Stream Received")
-      call.on('stream', function(stream) {
-        // `stream` is the MediaStream of the remote peer.
-        // Here you'd add it to an HTML video/canvas element.
-      });
+    currPeer.on("call", function (call) {
+      console.log("Call Event Received");
+      setCurrCall(call);
+    });
+  }
+
+  if (currCall != null) {
+    currCall.on("stream", function (stream) {
+      // `stream` is the MediaStream of the remote peer.
+      // Here you'd add it to an HTML video/canvas element.
+      console.log("Stream Event Received");
+      videoRef2.current.srcObject = stream;
     });
   }
 
@@ -207,11 +198,11 @@ function App() {
 
         //Handle Screen Share Request
         if (typeof data == typeof "") {
-          let command = data.split(",")
-          if (command[0] == "rss"){
+          let command = data.split(",");
+          if (command[0] == "rss") {
             // Call a peer, providing our mediaStream
-            //console.log(video.srcObject)
-            var call = currPeer.call(command[1], video.srcObject);
+            console.log(video.srcObject);
+            currPeer.call(command[1], video.srcObject);
           }
         }
 
@@ -353,32 +344,28 @@ function App() {
         <div />
       )}
 
-      <Button onClick={startCapture}>Start Capture</Button>
-
-      <Button onClick={stopCapture}>Stop Capture</Button>
-
-      {/* <input type="text" onKeyDown={(e) => handleKeyPress(e)} /> */}
-
       <Grid item xs={4} justifyContent="center">
-          <Typography>Request Screen Share</Typography>
-          <TextField
-            label="PeerId"
-            value={serverID}
-            onChange={(e) => {
-              setServerIdInput(e.target.value);
-            }}
-          ></TextField>
-          <Button
-            variant="contained"
-            onClick={() => {
-              requestScreenShare(serverID);
-            }}
-          >
-            Request Game
-          </Button>
-        </Grid>
+        <Typography>Request Screen Share</Typography>
+        <TextField
+          label="PeerId"
+          value={serverID}
+          onChange={(e) => {
+            setServerIdInput(e.target.value);
+          }}
+        ></TextField>
+        <Button
+          variant="contained"
+          onClick={() => {
+            requestScreenShare(serverID);
+          }}
+        >
+          Request Game
+        </Button>
+      </Grid>
 
       <video ref={videoRef} autoPlay></video>
+
+      <video ref={videoRef2} autoPlay></video>
 
       <PlayerPeer />
       <div />
