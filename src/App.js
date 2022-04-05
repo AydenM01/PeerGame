@@ -10,7 +10,7 @@ function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
   let videoRef = createRef();
   let videoRef2 = useRef(null);
-  const [video] = useDisplay(videoRef)[0];
+  const [video] = useDisplay(videoRef);
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
@@ -355,7 +355,7 @@ function App() {
       </Grid>
 
       {image !== null ? (
-        <img src={image.src} alt={'peer'} style={{ maxWidth: 800 }} />
+        <img src={image.src} alt={"peer"} style={{ maxWidth: 800 }} />
       ) : (
         <div />
       )}
