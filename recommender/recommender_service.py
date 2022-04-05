@@ -1,43 +1,53 @@
 import recommender_repository
-import numpy as np
 from scipy import spatial
+import numpy as np
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class RecommenderService:
     recommender_repository = None
-    matrix = None
 
     def __init__(self):
-        self.recommender_repository = recommender_repository
+        self.recommender_repository = recommender_repository.RecommenderRepository()
 
-    def get_similarity(self):
-        self.get_data()
-        self.make_matrix()
-        self.get_cosine()
+    def recommend_games(self, id):
+        pd_dict = self.get_data()
+        mat = self.create_user_matrix(pd_dict)
+        return self.create_similarity_and_get_top_games(mat)
 
-    def make_matrix(self):
-        self.matrix = np.zeros((self.rating_class.get_amount_users(), self.rating_class.get_max_movies()))
-        for i in range(self.rating_class.get_len_users()):
-            self.matrix[self.rating_class.users[i]][self.rating_class.movies[i]] = self.rating_class.ratings[i]
-        np.set_printoptions(threshold=np.inf)
+    def get_data(self):
+        return pd.DataFrame(data=self.recommender_repository.get_all_users())
 
-    def get_cosine(self):
-        result_dict = {}
-        mu = "movie"  # "movie"
-        self.matrix = self.matrix.transpose()
+    def create_user_matrix(self, pd_dict):
+        n = len(pd_dict)
+        max_user = pd_dict['user'].max()
+        max_game = pd_dict['game'].max()
+        indices = np.array([pd_dict['user'], pd_dict['game']])
+        ratings = np.array([pd_dict['rating']][0])
+        mat = np.zeros((max_user + 1, max_game + 1))
+        for row in range(n):
+            user = indices.T[row, 0]
+            game = indices.T[row, 1]
+            rating = ratings[row]
+            mat[user, game] = rating
+        return mat
 
-        for i in range(1, 11):
-            top_5 = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
-            for j in range(0, len(self.matrix)):
-                if i != j:
-                    result = 1 - spatial.distance.cosine(self.matrix[i], self.matrix[j])
-                    if result != 1:
-                        top_5.append([j, result])
-                    else:
-                        top_5.append([j, 0])
-                    top_5.sort(key=lambda x: x[1])
-                    top_5 = top_5[1:]
-            result_dict[i] = top_5
-        for key, value in result_dict.items():
-            print(
-                f"{mu} {key} was most similar to {mu}s {value[4][0]}, {value[3][0]}, {value[2][0]}, {value[1][0]}, {value[0][0]} in that order.")
+    def create_similarity_and_get_top_games(self, mat):
+        # this will be input
+        my_user = np.zeros((mat.shape[1]))
+        my_user[1] = 3
+
+        new_mat = np.vstack([mat, my_user])
+        new_extracted_mat = new_mat[:, new_mat.any(0)]
+        new_user_similarities = cosine_similarity(new_extracted_mat)
+        new_user_sim_df = pd.DataFrame(data=new_user_similarities[1:, 1:],
+                                       index=np.arange(1, new_mat.shape[0]),
+                                       columns=np.arange(1, new_mat.shape[0]))
+        closest_users_df = new_user_sim_df.sort_values(by=[mat.shape[0]], ascending=False)[mat.shape[0]][1:6]
+        closest_users = closest_users_df.index.to_numpy()
+        closest_users_games = new_mat[closest_users.T]
+        closest_games = np.sum(closest_users_games, axis=0)
+        closest_games_sorted = np.argsort(closest_games)
+        closest = list(closest_games_sorted[-5:][::-1])
+        return closest
