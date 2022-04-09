@@ -16,14 +16,14 @@ const useCleanup = (val) => {
 const initialiseCamera = async () =>
   await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true });
 
-export const useDisplay = (videoRef) => {
+export const useDisplay = (videoRef, role) => {
   const [isCameraInitialised, setIsCameraInitialised] = useState(false);
   const [video, setVideo] = useState(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(true);
 
   useEffect(() => {
-    if (video || !videoRef.current) {
+    if (role === "Player" || video || !videoRef.current) {
       return;
     }
 

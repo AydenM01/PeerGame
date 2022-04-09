@@ -10,6 +10,8 @@
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^0.26.1",
+    "firebase": "^9.6.10",
+    "firebase-admin": "^10.0.2",
     "fs": "^0.0.1-security",
     "gamecontroller": "^0.0.2",
     "peerjs-client": "^0.3.15",

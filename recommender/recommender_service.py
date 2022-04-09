@@ -13,7 +13,9 @@ class RecommenderService:
     def recommend_games(self, UserID):
         pd_dict = self.get_data()
         mat = self.create_user_matrix(pd_dict)
-        return self.create_similarity_and_get_top_games(mat, UserID)
+        games = self.create_similarity_and_get_top_games(mat, UserID)
+        game_names = [self.recommender_repository.get_game_name(game) for game in games]
+        return game_names
 
     def get_data(self):
         return pd.DataFrame(data=self.recommender_repository.get_all_users())

@@ -6,15 +6,18 @@ import { generateQueryId, encode } from "./utils/utils";
 import { useDisplay } from "./utils/useDisplay";
 import axios from "axios";
 import { api_url } from "./env";
+import Game from "./components/Game";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
+  const [role, setRole] = useState("Player");
   let videoRef = createRef();
   let videoRef2 = useRef(null);
-  const [video] = useDisplay(videoRef);
+  const [video] = useDisplay(videoRef, role);
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
+  const [recommendedGames, setRecommendedGames] = useState(null);
   const [currCall, setCurrCall] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
@@ -41,7 +44,9 @@ function App() {
     setCurrPeer(peer);
   }, [currUser]);
 
-  useEffect(() => {}, [image]);
+  useEffect(() => {
+    console.log(recommendedGames);
+  }, [image, recommendedGames]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -112,7 +117,7 @@ function App() {
       key: key,
     };
 
-    axios.post("http://127.0.0.1:5000/input", data, config);
+    axios.post("http://127.0.0.1:5001/input", data, config);
   };
 
   const requestScreenShare = (id) => {
@@ -136,6 +141,22 @@ function App() {
     Object.keys(currConnections).forEach((key) => {
       currConnections[key].send(data);
     });
+  };
+
+  const getRecommendedGames = async (userId) => {
+    let config = {
+      headers: {
+        "Access-Control-Allow_Origin": "*",
+        "Content-Type": "application/json",
+      },
+    };
+
+    let reccs = await axios.get(
+      "http://127.0.0.1:5000/api/v1/get_rec/" + userId,
+      config
+    );
+    let parsed = JSON.parse(reccs.data.games.replaceAll("'", '"'));
+    setRecommendedGames(parsed);
   };
 
   // This is called when user inputs query and clicks button
@@ -276,37 +297,38 @@ function App() {
       alignItems="center"
       style={{ marginLeft: "5%", marginRight: "5%" }}
     >
-      <Grid container spacing={1} alignItems="center">
+      <Grid container spacing={1}>
         <Grid item xs={12}>
           <Typography align="center" variant="h2">
             PeerGame
           </Typography>
         </Grid>
 
-        <Grid item xs={12}>
-          <Typography align="center" variant="h5">
-            Username: {currUser}
-          </Typography>
-        </Grid>
-
-        <Grid item xs={4} justifyContent="center">
-          <Typography>Login</Typography>
-          <TextField
-            label="Login"
-            value={loginIdInput}
-            onChange={(e) => {
-              setLoginIdInput(e.target.value);
-            }}
-          ></TextField>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setCurrUser(loginIdInput);
-            }}
-          >
-            Login
-          </Button>
-        </Grid>
+        {currUser ? (
+          <Grid item xs={12}>
+            <Typography variant="h5">Username: {currUser}</Typography>
+          </Grid>
+        ) : (
+          <Grid item xs={12} justifyContent="center">
+            <Typography>Login</Typography>
+            <TextField
+              label="Login"
+              value={loginIdInput}
+              onChange={(e) => {
+                setLoginIdInput(e.target.value);
+              }}
+            ></TextField>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setCurrUser(loginIdInput);
+                getRecommendedGames(loginIdInput);
+              }}
+            >
+              Login
+            </Button>
+          </Grid>
+        )}
 
         <Grid item xs={4} justifyContent="center">
           <Typography>Connect to Peer</Typography>
@@ -353,6 +375,48 @@ function App() {
             <input type="file" onChange={onFileChange} hidden />
           </Button>
         </Grid>
+
+        <Grid item xs={4} justifyContent="center">
+          <Typography>Request Screen Share</Typography>
+          <TextField
+            label="PeerId"
+            value={serverID}
+            onChange={(e) => {
+              setServerIdInput(e.target.value);
+            }}
+          ></TextField>
+          <Button
+            variant="contained"
+            onClick={() => {
+              requestScreenShare(serverID);
+            }}
+          >
+            Request Game
+          </Button>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Typography variant="h4">Your Recommended Games:</Typography>
+        </Grid>
+
+        {recommendedGames ? (
+          recommendedGames.map((name, key) => {
+            return (
+              <Grid
+                item
+                xs={2}
+                alignItems="center"
+                backgroundColor="lightgray"
+                border={10}
+                borderColor="gray"
+              >
+                <Game name={name} key={key}></Game>
+              </Grid>
+            );
+          })
+        ) : (
+          <div />
+        )}
       </Grid>
 
       {image !== null ? (
@@ -360,25 +424,6 @@ function App() {
       ) : (
         <div />
       )}
-
-      <Grid item xs={4} justifyContent="center">
-        <Typography>Request Screen Share</Typography>
-        <TextField
-          label="PeerId"
-          value={serverID}
-          onChange={(e) => {
-            setServerIdInput(e.target.value);
-          }}
-        ></TextField>
-        <Button
-          variant="contained"
-          onClick={() => {
-            requestScreenShare(serverID);
-          }}
-        >
-          Request Game
-        </Button>
-      </Grid>
 
       <video ref={videoRef} autoPlay></video>
 

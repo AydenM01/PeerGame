@@ -3,7 +3,6 @@ import numpy as np
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-
 class RecommenderRepository:
     db = None
 
@@ -38,3 +37,8 @@ class RecommenderRepository:
                 my_user[value['GameID']] = value['GameID']
 
         return my_user
+    
+    def get_game_name(self, game_id):
+        get_name = self.db.collection('Games Collection').document(f'game{game_id}').get({u'Title'})
+        name = u'{}'.format(get_name.to_dict()['Title'])
+        return name
