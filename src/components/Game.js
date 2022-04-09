@@ -17,7 +17,7 @@ const Game = (props) => {
           currentTarget.src = jpg_image_src;
         }}
         alt=""
-        width="300"
+        width="90%"
         height="360"
         style={{ paddingLeft: "3%" }}
       />

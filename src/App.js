@@ -46,7 +46,7 @@ function App() {
 
   useEffect(() => {
     console.log(recommendedGames);
-  }, [image, recommendedGames]);
+  }, [image, recommendedGames, video]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -188,7 +188,7 @@ function App() {
   //Listen for incoming Video Stream
   if (currPeer != null) {
     currPeer.on("call", function (call) {
-      //console.log("Call Event Received");
+      console.log("Call Event Received");
       setCurrCall(call);
     });
   }
@@ -224,7 +224,10 @@ function App() {
           let command = data.split(",");
           if (command[0] === "rss") {
             // Call a peer, providing our mediaStream
-            currPeer.call(command[1], video.srcObject);
+            console.log(video);
+            if (video) {
+              currPeer.call(command[1], video.srcObject);
+            }
           }
         }
 
@@ -303,14 +306,11 @@ function App() {
             PeerGame
           </Typography>
         </Grid>
+      </Grid>
 
-        {currUser ? (
-          <Grid item xs={12}>
-            <Typography variant="h5">Username: {currUser}</Typography>
-          </Grid>
-        ) : (
+      {!currUser && (
+        <Grid container spacing={1}>
           <Grid item xs={12} justifyContent="center">
-            <Typography>Login</Typography>
             <TextField
               label="Login"
               value={loginIdInput}
@@ -328,8 +328,45 @@ function App() {
               Login
             </Button>
           </Grid>
-        )}
+        </Grid>
+      )}
 
+      {currUser && (
+        <Grid container spacing={1}>
+          <Grid item xs={1}>
+            <Typography variant="h5">Username: {currUser}</Typography>
+          </Grid>
+
+          {role === "Player" && (
+            <Grid item xs={1}>
+              <Button variant="contained" onClick={() => setRole("Streamer")}>
+                Stream
+              </Button>
+            </Grid>
+          )}
+
+          {role === "Streamer" && (
+            <Grid item xs={1}>
+              <Button variant="contained" onClick={() => setRole("Player")}>
+                Play
+              </Button>
+            </Grid>
+          )}
+
+          <Grid item xs={1}>
+            <Button variant="contained" onClick={() => setCurrUser(null)}>
+              Log Out
+            </Button>
+          </Grid>
+          <Grid item xs={1}>
+            <Button variant="contained" onClick={() => {}}>
+              Search
+            </Button>
+          </Grid>
+        </Grid>
+      )}
+
+      <Grid container spacing={1}>
         <Grid item xs={4} justifyContent="center">
           <Typography>Connect to Peer</Typography>
           <TextField
@@ -395,15 +432,19 @@ function App() {
           </Button>
         </Grid>
 
-        <Grid item xs={12}>
-          <Typography variant="h4">Your Recommended Games:</Typography>
-        </Grid>
+        <video ref={videoRef2} autoPlay></video>
+        {role === "Player" && (
+          <Grid item xs={12}>
+            <Typography variant="h4">Your Recommended Games:</Typography>
+          </Grid>
+        )}
 
-        {recommendedGames ? (
+        {role === "Player" && recommendedGames && currUser ? (
           recommendedGames.map((name, key) => {
             return (
               <Grid
                 item
+                key={key}
                 xs={2}
                 alignItems="center"
                 backgroundColor="lightgray"
@@ -418,16 +459,12 @@ function App() {
           <div />
         )}
       </Grid>
-
       {image !== null ? (
         <img src={image.src} alt={"peer"} style={{ maxWidth: 800 }} />
       ) : (
         <div />
       )}
-
       <video ref={videoRef} autoPlay></video>
-
-      <video ref={videoRef2} autoPlay></video>
       <div />
     </Box>
   );
