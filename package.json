@@ -9,7 +9,7 @@
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
-    "axios": "^0.26.0",
+    "axios": "^0.26.1",
     "fs": "^0.0.1-security",
     "gamecontroller": "^0.0.2",
     "peerjs-client": "^0.3.15",
