@@ -11,9 +11,8 @@ import Game from "./components/Game";
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
   const [role, setRole] = useState("Player");
-  let videoRef = createRef();
+  let videoRef = useRef(null);
   let videoRef2 = useRef(null);
-  const [video] = useDisplay(videoRef, role);
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
@@ -46,7 +45,7 @@ function App() {
 
   useEffect(() => {
     console.log(recommendedGames);
-  }, [image, recommendedGames, video]);
+  }, [image, recommendedGames, videoRef, videoRef2]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -189,7 +188,10 @@ function App() {
   if (currPeer != null) {
     currPeer.on("call", function (call) {
       console.log("Call Event Received");
-      setCurrCall(call);
+      if (currCall === null) {
+        setCurrCall(call);
+      }
+      
     });
   }
 
@@ -224,9 +226,8 @@ function App() {
           let command = data.split(",");
           if (command[0] === "rss") {
             // Call a peer, providing our mediaStream
-            console.log(video);
-            if (video) {
-              currPeer.call(command[1], video.srcObject);
+            if (videoRef) {
+              currPeer.call(command[1], videoRef.current.srcObject);
             }
           }
         }
@@ -339,7 +340,7 @@ function App() {
 
           {role === "Player" && (
             <Grid item xs={1}>
-              <Button variant="contained" onClick={() => setRole("Streamer")}>
+              <Button variant="contained" onClick={() => {setRole("Streamer"); }}>
                 Stream
               </Button>
             </Grid>
