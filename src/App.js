@@ -44,7 +44,7 @@ function App() {
     setCurrPeer(peer);
   }, [currUser]);
 
-  useEffect(() => {}, [image, recommendedGames, callActive]);
+  useEffect(() => {console.log(recommendedGames)}, [image, recommendedGames, callActive]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -343,7 +343,7 @@ function App() {
 
       {currUser && (
         <Grid container spacing={1}>
-          <Grid item xs={1}>
+          <Grid item xs={2}>
             <Typography variant="h5">Username: {currUser}</Typography>
           </Grid>
 
@@ -448,8 +448,10 @@ function App() {
             Request Game
           </Button>
         </Grid>
+        
+        {videoRef2.current && videoRef2.current.srcObject && <video style={{ width: "80vw", height: "80vh" }} ref={videoRef2} autoPlay></video>}
+        
 
-        <video ref={videoRef2} autoPlay></video>
         {role === "Player" && (
           <Grid item xs={12}>
             <Typography variant="h4">Your Recommended Games:</Typography>
