@@ -13,11 +13,11 @@ function App() {
   const [role, setRole] = useState("Player");
   let videoRef = useRef(null);
   let videoRef2 = useRef(null);
+  let currCall = useRef(null);
   let storedFile = null;
   let previousQueries = new Set();
   const [currUser, setCurrUser] = useState("");
   const [recommendedGames, setRecommendedGames] = useState(null);
-  const [currCall, setCurrCall] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
   const [currPeer, setCurrPeer] = useState(null);
@@ -25,6 +25,7 @@ function App() {
   const [queryInput, setQueryInput] = useState("");
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
+  const [callActive, setCallActive] = useState(false);
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -43,9 +44,7 @@ function App() {
     setCurrPeer(peer);
   }, [currUser]);
 
-  useEffect(() => {
-    console.log(recommendedGames);
-  }, [image, recommendedGames, videoRef, videoRef2]);
+  useEffect(() => {}, [image, recommendedGames, callActive]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -63,12 +62,6 @@ function App() {
     };
   });
 
-  useEffect(() => {
-    if (currCall != null) {
-      currCall.answer();
-    }
-  }, [currCall]);
-
   //////////////////////// EVENT HANDLERS //////////////////////////////
   const onFileChange = (e) => {
     let file = e.target.files[0];
@@ -76,7 +69,6 @@ function App() {
     const fileObj = {};
     fileObj[file.name] = file;
     fileObj["blob"] = blob;
-    //console.log(fileObj);
     storedFile = fileObj;
     //setStoredFileObj(fileObj);
   };
@@ -86,8 +78,9 @@ function App() {
       return;
     }
     let newKeyInput = "ku," + event.key;
-    if (currCall != null && currPeer != null) {
-      let conn = currConnections[currCall.peer];
+    if (currCall.current != null && currPeer != null) {
+      console.log("sending keyup");
+      let conn = currConnections[currCall.current.peer];
       conn.send(newKeyInput);
     }
   };
@@ -97,8 +90,9 @@ function App() {
       return;
     }
     let newKeyInput = "kd," + event.key;
-    if (currCall != null && currPeer != null) {
-      let conn = currConnections[currCall.peer];
+    if (currCall.current != null && currPeer != null) {
+      console.log("sending keydown");
+      let conn = currConnections[currCall.current.peer];
       conn.send(newKeyInput);
     }
   };
@@ -187,20 +181,25 @@ function App() {
   //Listen for incoming Video Stream
   if (currPeer != null) {
     currPeer.on("call", function (call) {
-      console.log("Call Event Received");
-      if (currCall === null) {
-        setCurrCall(call);
+      //console.log("Call Event Received");
+      if (currCall.current === null) {
+        console.log("setting currCall and answering");
+        call.answer();
+        currCall.current = call;
+        setCallActive(true);
       }
-      
     });
   }
 
-  if (currCall != null) {
-    currCall.on("stream", function (stream) {
+  if (callActive) {
+    currCall.current.on("stream", function (stream) {
       // `stream` is the MediaStream of the remote peer.
       // Here you'd add it to an HTML video/canvas element.
-      //console.log("Stream Event Received");
-      videoRef2.current.srcObject = stream;
+      console.log("Stream Event Received");
+      if (videoRef.current.srcObject === null) {
+        console.log("Stream display not set, setting now!");
+        videoRef2.current.srcObject = stream;
+      }
     });
   }
 
@@ -209,6 +208,7 @@ function App() {
     currPeer.on("connection", function (conn) {
       conn.on("data", function (data) {
         // Handle File Found
+        console.log(data);
         if (
           typeof data == typeof {} &&
           data.hasOwnProperty("type") &&
@@ -226,8 +226,15 @@ function App() {
           let command = data.split(",");
           if (command[0] === "rss") {
             // Call a peer, providing our mediaStream
-            if (videoRef) {
-              currPeer.call(command[1], videoRef.current.srcObject);
+            if (!videoRef.current.srcObject) {
+              console.log("not streaming anything, not gonna send video");
+            }
+            if (currCall.current === null && videoRef.current.srcObject) {
+              console.log("starting call");
+              currCall.current = currPeer.call(
+                command[1],
+                videoRef.current.srcObject
+              );
             }
           }
         }
@@ -340,7 +347,14 @@ function App() {
 
           {role === "Player" && (
             <Grid item xs={1}>
-              <Button variant="contained" onClick={() => {setRole("Streamer"); }}>
+              <Button
+                variant="contained"
+                onClick={async () => {
+                  setRole("Streamer");
+                  videoRef.current.srcObject =
+                    await navigator.mediaDevices.getDisplayMedia();
+                }}
+              >
                 Stream
               </Button>
             </Grid>
@@ -465,7 +479,11 @@ function App() {
       ) : (
         <div />
       )}
-      <video ref={videoRef} autoPlay></video>
+      <video
+        style={{ width: "80vw", height: "80vh" }}
+        ref={videoRef}
+        autoPlay
+      ></video>
       <div />
     </Box>
   );
