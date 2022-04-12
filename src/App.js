@@ -403,32 +403,36 @@ function App() {
           </Button>
         </Grid>
 
-        <Grid item xs={4} justifyContent="center">
-          <Typography>Send Query</Typography>
+        {false && (
+          <Grid item xs={4} justifyContent="center">
+            <Typography>Send Query</Typography>
 
-          <TextField
-            label="Query"
-            value={queryInput}
-            onChange={(e) => {
-              setQueryInput(e.target.value);
-            }}
-          ></TextField>
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleQuery(queryInput);
-            }}
-          >
-            Query Image
-          </Button>
-        </Grid>
+            <TextField
+              label="Query"
+              value={queryInput}
+              onChange={(e) => {
+                setQueryInput(e.target.value);
+              }}
+            ></TextField>
+            <Button
+              variant="contained"
+              onClick={() => {
+                handleQuery(queryInput);
+              }}
+            >
+              Query Image
+            </Button>
+          </Grid>
+        )}
 
-        <Grid item xs={6} justifyContent="center">
-          <Button variant="contained" component="label">
-            Upload File
-            <input type="file" onChange={onFileChange} hidden />
-          </Button>
-        </Grid>
+        {false && (
+          <Grid item xs={6} justifyContent="center">
+            <Button variant="contained" component="label">
+              Upload File
+              <input type="file" onChange={onFileChange} hidden />
+            </Button>
+          </Grid>
+        )}
 
         <Grid item xs={4} justifyContent="center">
           <Typography>Request Screen Share</Typography>
