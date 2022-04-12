@@ -42,6 +42,18 @@ def parse_request():
             PressKey(D)
         elif command == 'ku':
             ReleaseKey(D)
+    elif key == 'c':
+        if command == 'kd':
+            #time.sleep(1)
+            PressKey(C)
+        elif command == 'ku':
+            ReleaseKey(C)
+    elif key == 'v':
+        if command == 'kd':
+            #time.sleep(1)
+            PressKey(V)
+        elif command == 'ku':
+            ReleaseKey(V)
     return 'DONE'
     
 if __name__ == '__main__':

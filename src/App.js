@@ -248,7 +248,9 @@ function App() {
               command[1] === "w" ||
               command[1] === "a" ||
               command[1] === "s" ||
-              command[1] === "d"
+              command[1] === "d" ||
+              command[1] === "c" ||
+              command[1] === "v"
             ) {
               sendInput(command[0], command[1]);
             }
