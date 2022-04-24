@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Flask
 from flask_cors import CORS
 import recommender_service
@@ -19,6 +21,11 @@ class RecommenderController:
 
         @app.route("/api/v1/get_rec/<UserID>")
         def get_users(UserID):
+            games = str(self.recommender_service.recommend_games(int(UserID)))
+            return {'games': games}
+
+        @app.route("/api/v1/get_rec/<UserID>/<Genre>")
+        def get_users_genre(UserID, Genre):
             games = str(self.recommender_service.recommend_games(int(UserID)))
             return {'games': games}
 

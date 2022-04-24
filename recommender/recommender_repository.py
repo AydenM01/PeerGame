@@ -1,3 +1,5 @@
+from random import randint
+
 import firebase_admin
 import numpy as np
 from firebase_admin import credentials
@@ -24,7 +26,13 @@ class RecommenderRepository:
                     user_dict['game'].append(value['GameID'])
                     user_dict['rating'].append(value['GameID'])
                     user_dict['time'].append(value['Time Played'])
-
+        # for i in range(10):
+        #     game = randint(1, 8)
+        #     for j in range(10):
+        #         user_dict['user'].append(i + 1)
+        #         user_dict['game'].append(game + j)
+        #         user_dict['rating'].append(game + j)
+        #         user_dict['time'].append(randint(1, 30))
         return user_dict
 
     def get_single_user(self, UserID, n):
@@ -42,3 +50,8 @@ class RecommenderRepository:
         get_name = self.db.collection('Games Collection').document(f'game{game_id}').get({u'Title'})
         name = u'{}'.format(get_name.to_dict()['Title'])
         return name
+
+    def get_game_popularity(self, game_id):
+        get_pop = self.db.collection('Games Collection').document(f'game{game_id}').get({u'Popularity'})
+        pop = u'{}'.format(get_pop.to_dict()['Popularity'])
+        return int(pop)

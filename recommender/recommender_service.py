@@ -48,6 +48,20 @@ class RecommenderService:
         closest_users = closest_users_df.index.to_numpy()
         closest_users_games = new_mat[closest_users.T]
         closest_games = np.sum(closest_users_games, axis=0)
-        closest_games_sorted = np.argsort(closest_games)
-        closest = list(closest_games_sorted[-5:][::-1])
-        return closest
+        closest_games_weighted = self.weigh_games_by_popularity(closest_games)
+        closest_games_sorted = np.argsort(closest_games_weighted)
+        closest = list(closest_games_sorted[-10:][::-1])
+        return self.get_closest_not_played(closest, my_user)
+
+    def weigh_games_by_popularity(self, closest_games):
+        for i in range(1, len(closest_games)):
+            closest_games[i] *= self.recommender_repository.get_game_popularity(i)
+        return closest_games
+
+    def get_closest_not_played(self, closest, my_user):
+        for game in my_user:
+            if game in closest:
+                closest.remove(game)
+        return closest[0:5]
+
+
