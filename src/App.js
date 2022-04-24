@@ -23,7 +23,7 @@ function App() {
   const [recommendedGames, setRecommendedGames] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
-  const [currPeer, setCurrPeer] = useState(null);
+  let currPeer = useRef(null);
   //const [currConnections, setCurrConnections] = useState({});
   const [queryInput, setQueryInput] = useState("");
   const [image, setImage] = useState(null);
@@ -46,13 +46,14 @@ function App() {
       renegotiate: false,
     });
     setPeerListeners(peer);
-    setCurrPeer(peer);
+    currPeer.current = peer;
   }, [currUser]);
 
   useEffect(async () => {
     if (role === "Streamer") {
-      videoRef.current.srcObject =
-        await navigator.mediaDevices.getDisplayMedia();
+      let constraints = { video: { width: 240, height: 426 } };
+      let track = await navigator.mediaDevices.getDisplayMedia(constraints);
+      videoRef.current.srcObject = track;
     }
   }, [role]);
 
@@ -68,11 +69,6 @@ function App() {
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
   }, []);
 
   //////////////////////// NON-PEERJS EVENT HANDLERS //////////////////////////////
@@ -81,8 +77,10 @@ function App() {
     if (event.repeat) {
       return;
     }
+    console.log(event);
     let newKeyInput = "ku," + event.key;
-    if (currCall.current != null && currPeer != null) {
+    console.log(currPeer.current);
+    if (currCall.current != null && currPeer.current != null) {
       console.log("sending keyup");
       let conn = connections.current[currCall.current.peer];
       conn.send(newKeyInput);
@@ -94,7 +92,7 @@ function App() {
       return;
     }
     let newKeyInput = "kd," + event.key;
-    if (currCall.current != null && currPeer != null) {
+    if (currCall.current != null && currPeer.current != null) {
       console.log("sending keydown");
       let conn = connections.current[currCall.current.peer];
       conn.send(newKeyInput);
@@ -146,7 +144,7 @@ function App() {
       // If connection doesnt already exist
       console.log("no connection yet, making one");
       let connection = null;
-      connection = currPeer.connect(id);
+      connection = currPeer.current.connect(id);
       //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
       connections.current[id] = connection;
       connection.on("open", () => connection.send("rss, " + currUser));
@@ -165,7 +163,7 @@ function App() {
 
   // Starts Connection with Other Peer
   const handleConnection = (id) => {
-    const connection = currPeer.connect(id);
+    const connection = currPeer.current.connect(id);
     connections.current[id] = connection;
     //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
     connection.on("open", () => connection.send("Hi, I am peer " + currUser));
@@ -270,7 +268,7 @@ function App() {
           if (currCall.current === null && videoRef.current.srcObject) {
             console.log("starting call");
             console.log(command[1].substring(1));
-            currCall.current = currPeer.call(
+            currCall.current = currPeer.current.call(
               command[1].substring(1),
               videoRef.current.srcObject
             );
@@ -324,12 +322,12 @@ function App() {
           };
 
           // Create connection with asker and send to them
-          if (connections.current.hasOwnProperty(currPeer)) {
+          if (connections.current.hasOwnProperty(data.asker)) {
             console.log("Asker already connected to, sending file");
-            connections.current[currPeer].send(gameData);
+            connections.current[data.asker].send(gameData);
           } else {
             console.log("Asker not connected to, starting connection");
-            let connection = currPeer.connect(data.asker);
+            let connection = currPeer.current.connect(data.asker);
             connection.on("open", function () {
               console.log("Sending asker the file");
               connection.send(gameData);
@@ -589,16 +587,8 @@ function App() {
           <div />
         )}
       </Grid>
-      {image !== null ? (
-        <img src={image.src} alt={"peer"} style={{ maxWidth: 800 }} />
-      ) : (
-        <div />
-      )}
-      <video
-        style={{ width: "80vw", height: "80vh" }}
-        ref={videoRef}
-        autoPlay
-      ></video>
+      {image !== null ? <img src={image.src} alt={"peer"} /> : <div />}
+      <video ref={videoRef} autoPlay></video>
       <div />
     </Box>
   );
