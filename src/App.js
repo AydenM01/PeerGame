@@ -44,7 +44,9 @@ function App() {
     setCurrPeer(peer);
   }, [currUser]);
 
-  useEffect(() => {console.log(recommendedGames)}, [image, recommendedGames, callActive]);
+  useEffect(() => {
+    console.log(recommendedGames);
+  }, [image, recommendedGames, callActive]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -212,7 +214,7 @@ function App() {
         if (
           typeof data == typeof {} &&
           data.hasOwnProperty("type") &&
-          data.type === "FileFound"
+          data.type === "GameFound"
         ) {
           const bytes = new Uint8Array(data.blob);
           const img = document.createElement("img");
@@ -264,36 +266,32 @@ function App() {
           data.type === "query" &&
           !previousQueries.has(data.qid)
         ) {
-          //console.log("New File Query Receieved");
+          //console.log("New Game Query Receieved");
           //console.log(data);
           previousQueries.add(data.qid);
 
-          // Check if file exists on client
-          //console.log("seeing if queried file exists on client");
+          // Check if game exists on client
+          //console.log("seeing if game is being streamed");
 
-          if (storedFile != null) {
-            Object.keys(storedFile).forEach((key) => {
-              // Handle if File is Found
-              if (storedFile[key].name.includes(data.fileKeyword)) {
-                //console.log("File Found!");
+          if (role === "Streamer" && serverID !== "") {
+            // Handle if File is Found
+            if (serverID === data.fileKeyword) {
+              //console.log("Game Found!");
 
-                let fileData = {
-                  qid: data.qid,
-                  type: "FileFound",
-                  file: storedFile[key],
-                  peer: currUser,
-                  fileKeyword: data.fileKeyword,
-                  blob: storedFile["blob"],
-                };
+              let gameData = {
+                qid: data.qid,
+                type: "GameFound",
+                peer: currUser,
+                gameKeyword: data.fileKeyword,
+              };
 
-                // Create connection with asker and send to them
-                let connection = currPeer.connect(data.asker);
-                connection.on("open", function () {
-                  console.log("Sending asker the file");
-                  connection.send(fileData);
-                });
-              }
-            });
+              // Create connection with asker and send to them
+              let connection = currPeer.connect(data.asker);
+              connection.on("open", function () {
+                console.log("Sending asker the file");
+                connection.send(gameData);
+              });
+            }
           }
 
           // Forward Query to Neighbors
@@ -348,18 +346,25 @@ function App() {
           </Grid>
 
           {role === "Player" && (
-            <Grid item xs={1}>
-              <Button
-                variant="contained"
-                onClick={async () => {
-                  setRole("Streamer");
-                  videoRef.current.srcObject =
-                    await navigator.mediaDevices.getDisplayMedia();
-                }}
-              >
-                Stream
-              </Button>
-            </Grid>
+            <>
+              <Grid item xs={1}>
+                <Button
+                  variant="contained"
+                  onClick={async () => {
+                    setRole("Streamer");
+                    videoRef.current.srcObject =
+                      await navigator.mediaDevices.getDisplayMedia();
+                  }}
+                >
+                  Stream
+                </Button>
+              </Grid>
+              <Grid item xs={1}>
+                <Button variant="contained" onClick={() => {}}>
+                  Search
+                </Button>
+              </Grid>
+            </>
           )}
 
           {role === "Streamer" && (
@@ -373,11 +378,6 @@ function App() {
           <Grid item xs={1}>
             <Button variant="contained" onClick={() => setCurrUser(null)}>
               Log Out
-            </Button>
-          </Grid>
-          <Grid item xs={1}>
-            <Button variant="contained" onClick={() => {}}>
-              Search
             </Button>
           </Grid>
         </Grid>
@@ -434,27 +434,69 @@ function App() {
           </Grid>
         )}
 
-        <Grid item xs={4} justifyContent="center">
-          <Typography>Request Screen Share</Typography>
-          <TextField
-            label="PeerId"
-            value={serverID}
-            onChange={(e) => {
-              setServerIdInput(e.target.value);
-            }}
-          ></TextField>
-          <Button
-            variant="contained"
-            onClick={() => {
-              requestScreenShare(serverID);
-            }}
-          >
-            Request Game
-          </Button>
-        </Grid>
-        
-        {videoRef2.current && videoRef2.current.srcObject && <video style={{ width: "80vw", height: "80vh" }} ref={videoRef2} autoPlay></video>}
-        
+        {role === "Player" && (
+          <>
+            <Grid item xs={4} justifyContent="center">
+              <Typography>Request Screen Share</Typography>
+              <TextField
+                label="PeerId"
+                value={serverID}
+                onChange={(e) => {
+                  setServerIdInput(e.target.value);
+                }}
+              ></TextField>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  requestScreenShare(serverID);
+                }}
+              >
+                Request Game
+              </Button>
+            </Grid>
+
+            <Grid item xs={4} justifyContent="center">
+              <Typography>Send Query</Typography>
+
+              <TextField
+                label="Query"
+                value={queryInput}
+                onChange={(e) => {
+                  setQueryInput(e.target.value);
+                }}
+              ></TextField>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  handleQuery(queryInput);
+                }}
+              >
+                Query Image
+              </Button>
+            </Grid>
+          </>
+        )}
+
+        {role === "Streamer" && (
+          <Grid item xs={4} justifyContent="center">
+            <Typography>Name of Game</Typography>
+            <TextField
+              label="PeerId"
+              value={serverID}
+              onChange={(e) => {
+                setServerIdInput(e.target.value);
+              }}
+            ></TextField>
+          </Grid>
+        )}
+
+        {videoRef2.current && videoRef2.current.srcObject && (
+          <video
+            style={{ width: "80vw", height: "80vh" }}
+            ref={videoRef2}
+            autoPlay
+          ></video>
+        )}
 
         {role === "Player" && (
           <Grid item xs={12}>
