@@ -11,21 +11,28 @@ import Game from "./components/Game";
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
   const [role, setRole] = useState("Player");
+  let connections = useRef({});
   let videoRef = useRef(null);
   let videoRef2 = useRef(null);
   let currCall = useRef(null);
+  let currGame = useRef(null);
   let storedFile = null;
   let previousQueries = new Set();
+  let gameName = "";
   const [currUser, setCurrUser] = useState("");
   const [recommendedGames, setRecommendedGames] = useState(null);
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
   const [currPeer, setCurrPeer] = useState(null);
-  const [currConnections, setCurrConnections] = useState({});
+  //const [currConnections, setCurrConnections] = useState({});
   const [queryInput, setQueryInput] = useState("");
   const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
   const [callActive, setCallActive] = useState(false);
+  const [activeGames, setActiveGames] = useState({});
+  const [queryMap, setQueryMap] = useState({});
+  const [callListenerToggle, setCallListenerToggle] = useState(false);
+  const [currGameInput, setCurrGameInput] = useState("");
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -35,45 +42,40 @@ function App() {
       host: api_url,
       port: 9000,
       path: "peerjs/myapp",
+      trickle: false,
+      renegotiate: false,
     });
-
-    peer.on("open", function (id) {
-      console.log("My peer ID is: " + id);
-    });
-
+    setPeerListeners(peer);
     setCurrPeer(peer);
   }, [currUser]);
 
-  useEffect(() => {
-    console.log(recommendedGames);
-  }, [image, recommendedGames, callActive]);
+  useEffect(async () => {
+    if (role === "Streamer") {
+      videoRef.current.srcObject =
+        await navigator.mediaDevices.getDisplayMedia();
+    }
+  }, [role]);
+
+  useEffect(() => {}, [
+    image,
+    recommendedGames,
+    callActive,
+    activeGames,
+    role,
+    serverID,
+  ]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  });
-
-  useEffect(() => {
     window.addEventListener("keyup", handleKeyUp);
 
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  });
+  }, []);
 
-  //////////////////////// EVENT HANDLERS //////////////////////////////
-  const onFileChange = (e) => {
-    let file = e.target.files[0];
-    let blob = new Blob(e.target.files, { type: file.type });
-    const fileObj = {};
-    fileObj[file.name] = file;
-    fileObj["blob"] = blob;
-    storedFile = fileObj;
-    //setStoredFileObj(fileObj);
-  };
+  //////////////////////// NON-PEERJS EVENT HANDLERS //////////////////////////////
 
   const handleKeyUp = (event) => {
     if (event.repeat) {
@@ -82,7 +84,7 @@ function App() {
     let newKeyInput = "ku," + event.key;
     if (currCall.current != null && currPeer != null) {
       console.log("sending keyup");
-      let conn = currConnections[currCall.current.peer];
+      let conn = connections.current[currCall.current.peer];
       conn.send(newKeyInput);
     }
   };
@@ -94,7 +96,7 @@ function App() {
     let newKeyInput = "kd," + event.key;
     if (currCall.current != null && currPeer != null) {
       console.log("sending keydown");
-      let conn = currConnections[currCall.current.peer];
+      let conn = connections.current[currCall.current.peer];
       conn.send(newKeyInput);
     }
   };
@@ -115,29 +117,6 @@ function App() {
     axios.post("http://127.0.0.1:5001/input", data, config);
   };
 
-  const requestScreenShare = (id) => {
-    //get connection from id
-    let conn = currConnections[id];
-    //console.log(conn);
-    conn.send("rss," + currUser);
-  };
-
-  const handleConnection = (id) => {
-    const connection = currPeer.connect(id);
-    let newCurrConnections = currConnections;
-    newCurrConnections[id] = connection;
-    setCurrConnections(newCurrConnections);
-    connection.on("open", () => connection.send("Hi, I am peer " + currUser));
-  };
-
-  // forwards data to neighboring nodes
-  const forwardQuery = (data) => {
-    console.log("Forwarding to Neighbors");
-    Object.keys(currConnections).forEach((key) => {
-      currConnections[key].send(data);
-    });
-  };
-
   const getRecommendedGames = async (userId) => {
     let config = {
       headers: {
@@ -154,152 +133,216 @@ function App() {
     setRecommendedGames(parsed);
   };
 
+  //////////////////////// PEERJS EVENT HANDLERS //////////////////////////////
+
+  const requestScreenShare = (id) => {
+    console.log("Requesting Screen Share");
+
+    // Check if connection already exists
+    if (connections.current.hasOwnProperty(id)) {
+      console.log("already have connection to streamer, requesting directly");
+      connections.current[id].send("rss, " + currUser);
+    } else {
+      // If connection doesnt already exist
+      console.log("no connection yet, making one");
+      let connection = null;
+      connection = currPeer.connect(id);
+      //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
+      connections.current[id] = connection;
+      connection.on("open", () => connection.send("rss, " + currUser));
+      setConnectionListeners(connection);
+    }
+  };
+
+  // Forwards data to neighboring nodes
+  const forwardQuery = (data) => {
+    console.log("Forwarding to Neighbors");
+    //console.log(currPeer.connections);
+    Object.keys(connections.current).forEach((key) => {
+      connections.current[key].send(data);
+    });
+  };
+
+  // Starts Connection with Other Peer
+  const handleConnection = (id) => {
+    const connection = currPeer.connect(id);
+    connections.current[id] = connection;
+    //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
+    connection.on("open", () => connection.send("Hi, I am peer " + currUser));
+    setConnectionListeners(connection);
+  };
+
   // This is called when user inputs query and clicks button
   // Starts communication between nodes for finding stuff
   const handleQuery = (queryInput) => {
+    console.log("sending query");
+    let q_id = generateQueryId();
     let data = {
-      qid: generateQueryId(),
+      qid: q_id,
       fileKeyword: queryInput,
       type: "query",
       asker: currUser,
     };
 
     previousQueries.add(data.qid);
+    setQueryMap((prev) => ({
+      ...prev,
+      [q_id]: queryInput,
+    }));
     forwardQuery(data);
   };
 
   ///////////////////////////////// PEER JS LISTENERS ////////////////////////////////
-  // Listen for new incoming connections
-  if (currPeer != null) {
-    // On new connection, add connection to ledger
-    currPeer.on("connection", function (conn) {
-      let newCurrConnections = currConnections;
-      newCurrConnections[conn.peer] = conn;
-      setCurrConnections(newCurrConnections);
-      console.log("Connected to " + conn.peer);
-    });
-  }
 
-  //Listen for incoming Video Stream
-  if (currPeer != null) {
-    currPeer.on("call", function (call) {
-      //console.log("Call Event Received");
+  const setPeerListeners = (peer) => {
+    // Set Peer Listeners
+    // Dependent State: currConnections, currCall
+    peer.on("open", function (id) {
+      console.log("My peer ID is: " + id);
+    });
+
+    peer.on("connection", function (conn) {
+      //setCurrConnections((prev) => ({ ...prev, [conn.peer]: conn }));
+      connections.current[conn.peer] = conn;
+      console.log("Connected to " + conn.peer);
+      setConnectionListeners(conn);
+    });
+
+    //Listen for incoming Video Stream
+    peer.on("call", function (call) {
+      console.log("Call Event Received");
       if (currCall.current === null) {
         console.log("setting currCall and answering");
         call.answer();
         currCall.current = call;
+        setCallListeners(currCall.current);
         setCallActive(true);
       }
     });
-  }
 
-  if (callActive) {
-    currCall.current.on("stream", function (stream) {
-      // `stream` is the MediaStream of the remote peer.
-      // Here you'd add it to an HTML video/canvas element.
+    peer.on("error", function (err) {
+      console.log("ERROR:");
+      console.log(err);
+    });
+  };
+
+  const setCallListeners = (currCall) => {
+    // Set Call Listeners
+    // Dependent State: videoRef, videoRef2
+    console.log(currCall);
+    currCall.on("stream", function (stream) {
       console.log("Stream Event Received");
       if (videoRef.current.srcObject === null) {
         console.log("Stream display not set, setting now!");
         videoRef2.current.srcObject = stream;
+        setCallListenerToggle(!callListenerToggle);
       }
     });
-  }
+  };
 
-  // Listen for Incoming Data on all Connections
-  if (currPeer != null) {
-    currPeer.on("connection", function (conn) {
-      conn.on("data", function (data) {
-        // Handle File Found
-        console.log(data);
-        if (
-          typeof data == typeof {} &&
-          data.hasOwnProperty("type") &&
-          data.type === "GameFound"
-        ) {
-          const bytes = new Uint8Array(data.blob);
-          const img = document.createElement("img");
-          img.src = "data:image/png;base64," + encode(bytes);
-          setImage(img);
-          conn.close();
+  const setConnectionListeners = (conn) => {
+    // Set Call Listeners
+    // Dependent State: activeGames, videoRef, currCall, role, currGame, currUser,
+    conn.on("data", function (data) {
+      // Handle File Found
+      console.log(data);
+      if (
+        typeof data == typeof {} &&
+        data.hasOwnProperty("type") &&
+        data.type === "GameFound"
+      ) {
+        setActiveGames((prev) => ({
+          ...prev,
+          [data.qid]: data.peer,
+        }));
+        console.log("GAME FOUND");
+      }
+
+      //Handle Screen Share Request
+      if (typeof data == typeof "") {
+        let command = data.split(",");
+        if (command[0] === "rss") {
+          // Call a peer, providing our mediaStream
+          if (!videoRef.current.srcObject) {
+            console.log("not streaming anything, not gonna send video");
+          }
+          console.log(currCall.current);
+          if (currCall.current === null && videoRef.current.srcObject) {
+            console.log("starting call");
+            console.log(command[1].substring(1));
+            currCall.current = currPeer.call(
+              command[1].substring(1),
+              videoRef.current.srcObject
+            );
+            setCallListeners(currCall.current);
+          }
         }
+      }
 
-        //Handle Screen Share Request
-        if (typeof data == typeof "") {
-          let command = data.split(",");
-          if (command[0] === "rss") {
-            // Call a peer, providing our mediaStream
-            if (!videoRef.current.srcObject) {
-              console.log("not streaming anything, not gonna send video");
-            }
-            if (currCall.current === null && videoRef.current.srcObject) {
-              console.log("starting call");
-              currCall.current = currPeer.call(
-                command[1],
-                videoRef.current.srcObject
-              );
-            }
+      //Handle Input Control Request
+      if (typeof data == typeof "") {
+        let command = data.split(",");
+        if (command[0] === "ku" || command[0] === "kd") {
+          console.log("Input command receieved");
+          if (
+            command[1] === "w" ||
+            command[1] === "a" ||
+            command[1] === "s" ||
+            command[1] === "d" ||
+            command[1] === "c" ||
+            command[1] === "v"
+          ) {
+            sendInput(command[0], command[1]);
+          }
+        }
+      }
+
+      //Handle Incoming Query Request
+      if (
+        typeof data == typeof {} &&
+        data.hasOwnProperty("type") &&
+        data.type === "query" &&
+        !previousQueries.has(data.qid)
+      ) {
+        console.log("New Game Query Receieved");
+        console.log(role);
+        previousQueries.add(data.qid);
+        console.log("seeing if game is being streamed");
+        console.log(data.fileKeyword);
+        console.log(currGame.current.textContent);
+        console.log(typeof currGame.current.textContent);
+        console.log(currGame.current.textContent === data.fileKeyword);
+
+        if (currGame.current.textContent === data.fileKeyword) {
+          console.log("Game Found!");
+
+          let gameData = {
+            qid: data.qid,
+            type: "GameFound",
+            peer: currUser,
+            gameKeyword: data.fileKeyword,
+          };
+
+          // Create connection with asker and send to them
+          if (connections.current.hasOwnProperty(currPeer)) {
+            console.log("Asker already connected to, sending file");
+            connections.current[currPeer].send(gameData);
+          } else {
+            console.log("Asker not connected to, starting connection");
+            let connection = currPeer.connect(data.asker);
+            connection.on("open", function () {
+              console.log("Sending asker the file");
+              connection.send(gameData);
+            });
+            setConnectionListeners(connection);
           }
         }
 
-        //Handle Input Control Request
-        if (typeof data == typeof "") {
-          let command = data.split(",");
-          if (command[0] === "ku" || command[0] === "kd") {
-            console.log("Input command receieved");
-            if (
-              command[1] === "w" ||
-              command[1] === "a" ||
-              command[1] === "s" ||
-              command[1] === "d" ||
-              command[1] === "c" ||
-              command[1] === "v"
-            ) {
-              sendInput(command[0], command[1]);
-            }
-          }
-        }
-
-        //Handle Incoming Query Request
-        if (
-          typeof data == typeof {} &&
-          data.hasOwnProperty("type") &&
-          data.type === "query" &&
-          !previousQueries.has(data.qid)
-        ) {
-          //console.log("New Game Query Receieved");
-          //console.log(data);
-          previousQueries.add(data.qid);
-
-          // Check if game exists on client
-          //console.log("seeing if game is being streamed");
-
-          if (role === "Streamer" && serverID !== "") {
-            // Handle if File is Found
-            if (serverID === data.fileKeyword) {
-              //console.log("Game Found!");
-
-              let gameData = {
-                qid: data.qid,
-                type: "GameFound",
-                peer: currUser,
-                gameKeyword: data.fileKeyword,
-              };
-
-              // Create connection with asker and send to them
-              let connection = currPeer.connect(data.asker);
-              connection.on("open", function () {
-                console.log("Sending asker the file");
-                connection.send(gameData);
-              });
-            }
-          }
-
-          // Forward Query to Neighbors
-          forwardQuery(data);
-        }
-      });
+        // Forward Query to Neighbors
+        forwardQuery(data);
+      }
     });
-  }
+  };
 
   /////////////////////////// REACT UI STUFF //////////////////////////////////
   return (
@@ -315,10 +358,10 @@ function App() {
           </Typography>
         </Grid>
       </Grid>
-
+      <p ref={currGame}>{currGameInput}</p>
       {!currUser && (
         <Grid container spacing={1}>
-          <Grid item xs={12} justifyContent="center">
+          <Grid item xs={6} justifyContent="center">
             <TextField
               label="Login"
               value={loginIdInput}
@@ -350,10 +393,8 @@ function App() {
               <Grid item xs={1}>
                 <Button
                   variant="contained"
-                  onClick={async () => {
+                  onClick={() => {
                     setRole("Streamer");
-                    videoRef.current.srcObject =
-                      await navigator.mediaDevices.getDisplayMedia();
                   }}
                 >
                   Stream
@@ -379,6 +420,10 @@ function App() {
             <Button variant="contained" onClick={() => setCurrUser(null)}>
               Log Out
             </Button>
+          </Grid>
+
+          <Grid item xs={6} justifyContent="center">
+            <Typography>{currGameInput}</Typography>
           </Grid>
         </Grid>
       )}
@@ -425,15 +470,6 @@ function App() {
           </Grid>
         )}
 
-        {false && (
-          <Grid item xs={6} justifyContent="center">
-            <Button variant="contained" component="label">
-              Upload File
-              <input type="file" onChange={onFileChange} hidden />
-            </Button>
-          </Grid>
-        )}
-
         {role === "Player" && (
           <>
             <Grid item xs={4} justifyContent="center">
@@ -471,7 +507,7 @@ function App() {
                   handleQuery(queryInput);
                 }}
               >
-                Query Image
+                Query Game
               </Button>
             </Grid>
           </>
@@ -481,22 +517,51 @@ function App() {
           <Grid item xs={4} justifyContent="center">
             <Typography>Name of Game</Typography>
             <TextField
-              label="PeerId"
-              value={serverID}
+              label="Game Name"
+              value={currGameInput}
               onChange={(e) => {
-                setServerIdInput(e.target.value);
+                setCurrGameInput(e.target.value);
               }}
             ></TextField>
           </Grid>
         )}
 
-        {videoRef2.current && videoRef2.current.srcObject && (
-          <video
-            style={{ width: "80vw", height: "80vh" }}
-            ref={videoRef2}
-            autoPlay
-          ></video>
+        {role === "Player" && Object.keys(activeGames).length !== 0 && (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="h4">Active Games:</Typography>
+            </Grid>
+            {Object.keys(activeGames).map((qid, key) => {
+              return (
+                <Grid
+                  item
+                  key={key}
+                  xs={2}
+                  alignItems="center"
+                  backgroundColor="lightgray"
+                  border={10}
+                  borderColor="gray"
+                >
+                  <Game name={queryMap[qid]} key={key}></Game>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      requestScreenShare(activeGames[qid]);
+                    }}
+                  >
+                    Play
+                  </Button>
+                </Grid>
+              );
+            })}
+          </>
         )}
+
+        <video
+          style={{ width: "80vw", height: "80vh" }}
+          ref={videoRef2}
+          autoPlay
+        ></video>
 
         {role === "Player" && (
           <Grid item xs={12}>
