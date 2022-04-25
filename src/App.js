@@ -10,29 +10,25 @@ import Game from "./components/Game";
 
 function App() {
   /////////////////////// STATEFUL & CLIENT DATA //////////////////////
-  const [role, setRole] = useState("Player");
   let connections = useRef({});
   let videoRef = useRef(null);
   let videoRef2 = useRef(null);
   let currCall = useRef(null);
   let currGame = useRef(null);
-  let storedFile = null;
-  let previousQueries = new Set();
-  let gameName = "";
+  let previousQueriesRef = useRef(new Set());
+  let currPeer = useRef(null);
+  let activeGamesRef = useRef({});
+
+  const [role, setRole] = useState("Player");
   const [currUser, setCurrUser] = useState("");
   const [recommendedGames, setRecommendedGames] = useState(null);
+  const [currGameInput, setCurrGameInput] = useState("");
   const [peerIdInput, setPeerIdInput] = useState("");
   const [loginIdInput, setLoginIdInput] = useState("");
-  let currPeer = useRef(null);
-  //const [currConnections, setCurrConnections] = useState({});
   const [queryInput, setQueryInput] = useState("");
-  const [image, setImage] = useState(null);
   const [serverID, setServerIdInput] = useState("");
-  const [callActive, setCallActive] = useState(false);
-  const [activeGames, setActiveGames] = useState({});
-  const [queryMap, setQueryMap] = useState({});
+  const [renderTrigger, setRenderTrigger] = useState(false);
   const [callListenerToggle, setCallListenerToggle] = useState(false);
-  const [currGameInput, setCurrGameInput] = useState("");
 
   ///////////////////// REACT USE EFFECT HOOKS /////////////////////////////
   useEffect(() => {
@@ -51,20 +47,12 @@ function App() {
 
   useEffect(async () => {
     if (role === "Streamer") {
-      let constraints = { video: { width: 240, height: 426 } };
-      let track = await navigator.mediaDevices.getDisplayMedia(constraints);
-      videoRef.current.srcObject = track;
+      videoRef.current.srcObject =
+        await navigator.mediaDevices.getDisplayMedia();
     }
   }, [role]);
 
-  useEffect(() => {}, [
-    image,
-    recommendedGames,
-    callActive,
-    activeGames,
-    role,
-    serverID,
-  ]);
+  useEffect(() => {}, [recommendedGames, serverID]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -77,9 +65,9 @@ function App() {
     if (event.repeat) {
       return;
     }
-    console.log(event);
+    //console.log(event);
     let newKeyInput = "ku," + event.key;
-    console.log(currPeer.current);
+    //console.log(currPeer.current);
     if (currCall.current != null && currPeer.current != null) {
       console.log("sending keyup");
       let conn = connections.current[currCall.current.peer];
@@ -144,8 +132,8 @@ function App() {
       // If connection doesnt already exist
       console.log("no connection yet, making one");
       let connection = null;
+      console.log(id);
       connection = currPeer.current.connect(id);
-      //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
       connections.current[id] = connection;
       connection.on("open", () => connection.send("rss, " + currUser));
       setConnectionListeners(connection);
@@ -155,7 +143,7 @@ function App() {
   // Forwards data to neighboring nodes
   const forwardQuery = (data) => {
     console.log("Forwarding to Neighbors");
-    //console.log(currPeer.connections);
+    console.log(connections.current);
     Object.keys(connections.current).forEach((key) => {
       connections.current[key].send(data);
     });
@@ -165,7 +153,6 @@ function App() {
   const handleConnection = (id) => {
     const connection = currPeer.current.connect(id);
     connections.current[id] = connection;
-    //setCurrConnections((prev) => ({ ...prev, [id]: connection }));
     connection.on("open", () => connection.send("Hi, I am peer " + currUser));
     setConnectionListeners(connection);
   };
@@ -177,30 +164,24 @@ function App() {
     let q_id = generateQueryId();
     let data = {
       qid: q_id,
-      fileKeyword: queryInput,
+      gameKeyword: queryInput,
       type: "query",
       asker: currUser,
     };
 
-    previousQueries.add(data.qid);
-    setQueryMap((prev) => ({
-      ...prev,
-      [q_id]: queryInput,
-    }));
+    previousQueriesRef.current.add(data.qid);
+
     forwardQuery(data);
   };
 
   ///////////////////////////////// PEER JS LISTENERS ////////////////////////////////
 
   const setPeerListeners = (peer) => {
-    // Set Peer Listeners
-    // Dependent State: currConnections, currCall
     peer.on("open", function (id) {
       console.log("My peer ID is: " + id);
     });
 
     peer.on("connection", function (conn) {
-      //setCurrConnections((prev) => ({ ...prev, [conn.peer]: conn }));
       connections.current[conn.peer] = conn;
       console.log("Connected to " + conn.peer);
       setConnectionListeners(conn);
@@ -214,7 +195,6 @@ function App() {
         call.answer();
         currCall.current = call;
         setCallListeners(currCall.current);
-        setCallActive(true);
       }
     });
 
@@ -226,7 +206,6 @@ function App() {
 
   const setCallListeners = (currCall) => {
     // Set Call Listeners
-    // Dependent State: videoRef, videoRef2
     console.log(currCall);
     currCall.on("stream", function (stream) {
       console.log("Stream Event Received");
@@ -239,20 +218,16 @@ function App() {
   };
 
   const setConnectionListeners = (conn) => {
-    // Set Call Listeners
-    // Dependent State: activeGames, videoRef, currCall, role, currGame, currUser,
+    // Set Connection Listeners
     conn.on("data", function (data) {
-      // Handle File Found
       console.log(data);
       if (
         typeof data == typeof {} &&
         data.hasOwnProperty("type") &&
         data.type === "GameFound"
       ) {
-        setActiveGames((prev) => ({
-          ...prev,
-          [data.qid]: data.peer,
-        }));
+        activeGamesRef.current[data.peer] = data.gameKeyword;
+        setRenderTrigger(!renderTrigger);
         console.log("GAME FOUND");
       }
 
@@ -300,26 +275,27 @@ function App() {
         typeof data == typeof {} &&
         data.hasOwnProperty("type") &&
         data.type === "query" &&
-        !previousQueries.has(data.qid)
+        !previousQueriesRef.current.has(data.qid)
       ) {
         console.log("New Game Query Receieved");
-        console.log(role);
-        previousQueries.add(data.qid);
+        previousQueriesRef.current.add(data.qid);
         console.log("seeing if game is being streamed");
-        console.log(data.fileKeyword);
-        console.log(currGame.current.textContent);
-        console.log(typeof currGame.current.textContent);
-        console.log(currGame.current.textContent === data.fileKeyword);
-
-        if (currGame.current.textContent === data.fileKeyword) {
+        if (
+          currGame.current.textContent === data.gameKeyword ||
+          data.gameKeyword === "!!!"
+        ) {
           console.log("Game Found!");
 
           let gameData = {
             qid: data.qid,
             type: "GameFound",
             peer: currUser,
-            gameKeyword: data.fileKeyword,
+            gameKeyword: data.gameKeyword,
           };
+
+          if (data.gameKeyword === "!!!") {
+            gameData.gameKeyword = currGame.current.textContent;
+          }
 
           // Create connection with asker and send to them
           if (connections.current.hasOwnProperty(data.asker)) {
@@ -350,13 +326,15 @@ function App() {
       style={{ marginLeft: "5%", marginRight: "5%" }}
     >
       <Grid container spacing={1}>
-        <Grid item xs={12}>
+        <Grid item xs={12} style={{ marginBottom: 20 }}>
           <Typography align="center" variant="h2">
             PeerGame
           </Typography>
         </Grid>
       </Grid>
-      <p ref={currGame}>{currGameInput}</p>
+      <p hidden ref={currGame}>
+        {currGameInput}
+      </p>
       {!currUser && (
         <Grid container spacing={1}>
           <Grid item xs={6} justifyContent="center">
@@ -382,13 +360,13 @@ function App() {
 
       {currUser && (
         <Grid container spacing={1}>
-          <Grid item xs={2}>
+          <Grid item xs={3}>
             <Typography variant="h5">Username: {currUser}</Typography>
           </Grid>
 
           {role === "Player" && (
             <>
-              <Grid item xs={1}>
+              <Grid item xs={2}>
                 <Button
                   variant="contained"
                   onClick={() => {
@@ -398,7 +376,7 @@ function App() {
                   Stream
                 </Button>
               </Grid>
-              <Grid item xs={1}>
+              <Grid item xs={2}>
                 <Button variant="contained" onClick={() => {}}>
                   Search
                 </Button>
@@ -407,129 +385,163 @@ function App() {
           )}
 
           {role === "Streamer" && (
-            <Grid item xs={1}>
+            <Grid item xs={2}>
               <Button variant="contained" onClick={() => setRole("Player")}>
                 Play
               </Button>
             </Grid>
           )}
 
-          <Grid item xs={1}>
+          <Grid item xs={2}>
             <Button variant="contained" onClick={() => setCurrUser(null)}>
               Log Out
             </Button>
           </Grid>
 
-          <Grid item xs={6} justifyContent="center">
-            <Typography>{currGameInput}</Typography>
+          <Grid item xs={2}>
+            <Button variant="contained" onClick={() => handleQuery("!!!")}>
+              Deep Search
+            </Button>
           </Grid>
         </Grid>
       )}
 
-      <Grid container spacing={1}>
-        <Grid item xs={4} justifyContent="center">
-          <Typography>Connect to Peer</Typography>
-          <TextField
-            label="PeerId"
-            value={peerIdInput}
-            onChange={(e) => {
-              setPeerIdInput(e.target.value);
-            }}
-          ></TextField>
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleConnection(peerIdInput);
-            }}
-          >
-            Connect
-          </Button>
-        </Grid>
-
-        {false && (
+      {currUser && (
+        <Grid container spacing={1}>
           <Grid item xs={4} justifyContent="center">
-            <Typography>Send Query</Typography>
-
+            <Typography>Connect to Peer</Typography>
             <TextField
-              label="Query"
-              value={queryInput}
+              label="PeerId"
+              value={peerIdInput}
               onChange={(e) => {
-                setQueryInput(e.target.value);
+                setPeerIdInput(e.target.value);
               }}
             ></TextField>
             <Button
               variant="contained"
               onClick={() => {
-                handleQuery(queryInput);
+                handleConnection(peerIdInput);
               }}
             >
-              Query Image
+              Connect
             </Button>
           </Grid>
-        )}
 
-        {role === "Player" && (
-          <>
+          {role === "Player" && (
+            <>
+              <Grid item xs={4} justifyContent="center">
+                <Typography>Request Screen Share</Typography>
+                <TextField
+                  label="PeerId"
+                  value={serverID}
+                  onChange={(e) => {
+                    setServerIdInput(e.target.value);
+                  }}
+                ></TextField>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    requestScreenShare(serverID);
+                  }}
+                >
+                  Request Game
+                </Button>
+              </Grid>
+
+              <Grid item xs={2} justifyContent="center">
+                <Typography>Send Query</Typography>
+
+                <TextField
+                  label="Query"
+                  value={queryInput}
+                  onChange={(e) => {
+                    setQueryInput(e.target.value);
+                  }}
+                ></TextField>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    handleQuery(queryInput);
+                  }}
+                >
+                  Query Game
+                </Button>
+              </Grid>
+
+              <Grid
+                item
+                xs={2}
+                justifyContent="center"
+                style={{ marginTop: 30 }}
+              >
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setRenderTrigger(!renderTrigger);
+                  }}
+                >
+                  Refresh
+                </Button>
+              </Grid>
+            </>
+          )}
+
+          {role === "Streamer" && (
             <Grid item xs={4} justifyContent="center">
-              <Typography>Request Screen Share</Typography>
+              <Typography>Name of Game</Typography>
               <TextField
-                label="PeerId"
-                value={serverID}
+                label="Game Name"
+                value={currGameInput}
                 onChange={(e) => {
-                  setServerIdInput(e.target.value);
+                  setCurrGameInput(e.target.value);
                 }}
               ></TextField>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  requestScreenShare(serverID);
-                }}
-              >
-                Request Game
-              </Button>
             </Grid>
+          )}
 
-            <Grid item xs={4} justifyContent="center">
-              <Typography>Send Query</Typography>
+          {role === "Player" &&
+            Object.keys(activeGamesRef.current).length !== 0 && (
+              <>
+                <Grid item xs={12}>
+                  <Typography variant="h4">Active Games:</Typography>
+                </Grid>
+                {Object.keys(activeGamesRef.current).map((peer, key) => {
+                  return (
+                    <Grid
+                      item
+                      key={key}
+                      xs={2}
+                      alignItems="center"
+                      backgroundColor="lightgray"
+                      border={10}
+                      borderColor="gray"
+                    >
+                      <Game
+                        name={activeGamesRef.current[peer]}
+                        key={key}
+                      ></Game>
+                      <Button
+                        variant="contained"
+                        onClick={() => {
+                          requestScreenShare(peer);
+                        }}
+                      >
+                        Play
+                      </Button>
+                    </Grid>
+                  );
+                })}
+              </>
+            )}
 
-              <TextField
-                label="Query"
-                value={queryInput}
-                onChange={(e) => {
-                  setQueryInput(e.target.value);
-                }}
-              ></TextField>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  handleQuery(queryInput);
-                }}
-              >
-                Query Game
-              </Button>
-            </Grid>
-          </>
-        )}
-
-        {role === "Streamer" && (
-          <Grid item xs={4} justifyContent="center">
-            <Typography>Name of Game</Typography>
-            <TextField
-              label="Game Name"
-              value={currGameInput}
-              onChange={(e) => {
-                setCurrGameInput(e.target.value);
-              }}
-            ></TextField>
-          </Grid>
-        )}
-
-        {role === "Player" && Object.keys(activeGames).length !== 0 && (
-          <>
+          {role === "Player" && (
             <Grid item xs={12}>
-              <Typography variant="h4">Active Games:</Typography>
+              <Typography variant="h4">Your Recommended Games:</Typography>
             </Grid>
-            {Object.keys(activeGames).map((qid, key) => {
+          )}
+
+          {role === "Player" && recommendedGames && currUser ? (
+            recommendedGames.map((name, key) => {
               return (
                 <Grid
                   item
@@ -540,54 +552,21 @@ function App() {
                   border={10}
                   borderColor="gray"
                 >
-                  <Game name={queryMap[qid]} key={key}></Game>
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      requestScreenShare(activeGames[qid]);
-                    }}
-                  >
-                    Play
-                  </Button>
+                  <Game name={name} key={key}></Game>
                 </Grid>
               );
-            })}
-          </>
-        )}
+            })
+          ) : (
+            <div />
+          )}
 
-        <video
-          style={{ width: "80vw", height: "80vh" }}
-          ref={videoRef2}
-          autoPlay
-        ></video>
-
-        {role === "Player" && (
-          <Grid item xs={12}>
-            <Typography variant="h4">Your Recommended Games:</Typography>
-          </Grid>
-        )}
-
-        {role === "Player" && recommendedGames && currUser ? (
-          recommendedGames.map((name, key) => {
-            return (
-              <Grid
-                item
-                key={key}
-                xs={2}
-                alignItems="center"
-                backgroundColor="lightgray"
-                border={10}
-                borderColor="gray"
-              >
-                <Game name={name} key={key}></Game>
-              </Grid>
-            );
-          })
-        ) : (
-          <div />
-        )}
-      </Grid>
-      {image !== null ? <img src={image.src} alt={"peer"} /> : <div />}
+          <video
+            style={{ width: "80vw", height: "80vh" }}
+            ref={videoRef2}
+            autoPlay
+          ></video>
+        </Grid>
+      )}
       <video ref={videoRef} autoPlay></video>
       <div />
     </Box>
