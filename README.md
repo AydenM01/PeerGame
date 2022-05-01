@@ -20,4 +20,5 @@ Run "python3 recommender_controller.py" and install required libraries via pip3.
 Cd to input_backend directory and run "python3 api.py" and install required libraries via pip3.   
 
 ## Start Connecting Peers
-Once frontend and peer-to-peer is setup, you can start opening up multiple instances of the client via "npm start" on different ports and use the frontend to start streaming and playing games! Refer to the demo videos on the various ways of making connections.
+Once frontend and peer-to-peer is setup, you can start opening up multiple instances of the client via "npm start" on different ports and use the frontend to start streaming and playing games! Refer to the demo videos on the various ways of making connections.    
+Make sure api_url is set to accessible IP if testing over multiple computers.    
